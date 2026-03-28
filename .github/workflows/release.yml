@@ -28,7 +28,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore dependencies
-        run: dotnet restore .\MetarViewer.csproj
+        run: dotnet restore .\MetarViewer.sln
 
       - name: Run tests
         run: dotnet test .\MetarViewer.Tests.csproj --configuration Release --no-restore
