@@ -15,8 +15,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
+    <!-- Trimming breaks WinUI/WinRT at runtime; keep self-contained size wins via x64-only + no PDBs + R2R. -->
+    <PublishTrimmed>false</PublishTrimmed>
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
