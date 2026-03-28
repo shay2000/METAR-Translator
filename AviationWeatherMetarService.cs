@@ -103,6 +103,7 @@ public class AviationWeatherMetarService : IMetarService
         var metarData = new MetarData
         {
             StationId = response.IcaoId ?? fallbackStationId,
+            StationName = string.IsNullOrWhiteSpace(response.Name) ? null : response.Name.Trim(),
             RawMetar = response.RawObservation ?? string.Empty,
             Temperature = RoundToInt(response.Temperature),
             DewPoint = RoundToInt(response.DewPoint),

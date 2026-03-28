@@ -15,12 +15,6 @@
 
   <ItemGroup>
     <Content Include="Assets\**" />
-    <Content Include="airports.json">
-      <Link>Data\airports.json</Link>
-      <TargetPath>Data\airports.json</TargetPath>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
   </ItemGroup>
 
   <ItemGroup>

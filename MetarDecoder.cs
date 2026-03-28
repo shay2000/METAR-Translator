@@ -104,7 +104,8 @@ public static class MetarDecoder
             (string.IsNullOrWhiteSpace(metar.AltimeterUnit) && metar.Altimeter >= 100))
         {
             var hpaFormat = metar.Altimeter == decimal.Truncate(metar.Altimeter.Value) ? "F0" : "F1";
-            return $"QNH {metar.Altimeter.Value.ToString(hpaFormat)} hPa";
+            var inHg = metar.Altimeter.Value / 33.8639m;
+            return $"QNH {metar.Altimeter.Value.ToString(hpaFormat)} hPa ({inHg:F2} inHg)";
         }
 
         var hpa = metar.Altimeter * 33.8639m;

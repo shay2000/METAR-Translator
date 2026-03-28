@@ -37,8 +37,11 @@
                                                                    
                     Background="Transparent"
                     BorderThickness="0"
-                    ToolTipService.ToolTip="Toggle theme">
-                    <FontIcon Glyph="&#xE771;" FontSize="16"/>
+                                                                                               >
+                    <TextBlock x:ConnectionId='20'
+                                                                               
+                        FontSize="20"
+                        VerticalAlignment="Center"/>
                 </Button>
             </Grid>
         </Border>
@@ -72,13 +75,17 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBox x:ConnectionId='16'
+                                <AutoSuggestBox x:ConnectionId='16'
                                     Grid.Column="0"
-                                    x:Name="SearchTextBox"
-                                                                                                                          
-                                    PlaceholderText="ICAO, IATA, or airport name (e.g., EGLL, LHR, London Heathrow)"
+                                    x:Name="SearchBox"
+                                                                                     
+                                                                                                    
+                                    TextMemberPath="DisplayText"
+                                    PlaceholderText="ICAO, IATA, or airport name (typos supported)"
                                     Margin="0,0,12,0"
-                                                                   />
+                                                                       
+                                                                                 
+                                                                             />
 
                                 <Button x:ConnectionId='17'
                                     Grid.Column="1"
@@ -130,10 +137,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0">
+                                    <StackPanel Grid.Column="0" Spacing="4">
                                         <TextBlock x:ConnectionId='14'
-                                                                                                         
-                                            Style="{StaticResource TitleTextBlockStyle}"/>
+                                                                                                    
+                                            Style="{StaticResource TitleTextBlockStyle}"
+                                            TextWrapping="WrapWholeWords"/>
                                         <TextBlock x:ConnectionId='15'
                                                                                                       
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"

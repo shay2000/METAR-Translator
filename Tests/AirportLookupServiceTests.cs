@@ -8,136 +8,133 @@ namespace MetarViewer.Tests;
 public class AirportLookupServiceTests
 {
     [Fact]
-    public async Task ResolveAirportAsync_LocalMatchWinsWithoutHttp()
+    public async Task ResolveAirportDetailsAsync_ExactCodeUsesDirectApiLookup()
     {
-        using var airportFile = new TemporaryAirportDataFile("""
-            [
-              {
-                "icao": "EGLL",
-                "iata": "LHR",
-                "name": "London Heathrow Airport",
-                "city": "London",
-                "country": "United Kingdom"
-              }
-            ]
-            """);
-        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse("{}"));
-        var service = CreateService(airportFile.Path, handler);
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            Assert.Equal("https://airportsapi.com/api/airports/LHR", request.RequestUri?.ToString());
+            return CreateJsonResponse(CreateSingleAirportResponse("EGLL", "London Heathrow Airport", "large_airport", "LHR"));
+        });
+        var service = CreateService(handler);
+
+        var result = await service.ResolveAirportDetailsAsync("LHR");
+
+        Assert.NotNull(result);
+        Assert.Equal("EGLL", result!.StationId);
+        Assert.Equal("London Heathrow Airport", result.DisplayName);
+        Assert.Equal("LHR", result.IataCode);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ResolveAirportAsync_NameSearchQueriesApiAndReturnsIcao()
+    {
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            Assert.Equal(
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heathrow&sort=name&include=country%2Cregion&page%5Bsize%5D=20",
+                request.RequestUri?.ToString());
+
+            return CreateJsonResponse(CreateSearchResponse(
+                CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR")));
+        });
+        var service = CreateService(handler);
+
+        var result = await service.ResolveAirportAsync("Heathrow");
+
+        Assert.Equal("EGLL", result);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ResolveAirportAsync_DirectLookupNotFoundFallsBackToCodeSearch()
+    {
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            return request.RequestUri?.ToString() switch
+            {
+                "https://airportsapi.com/api/airports/LHR" => new HttpResponseMessage(HttpStatusCode.NotFound),
+                "https://airportsapi.com/api/airports?filter%5Bcode%5D=LHR&sort=name&include=country%2Cregion&page%5Bsize%5D=20"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))),
+                _ => throw new Xunit.Sdk.XunitException($"Unexpected request URI: {request.RequestUri}")
+            };
+        });
+        var service = CreateService(handler);
 
         var result = await service.ResolveAirportAsync("LHR");
 
         Assert.Equal("EGLL", result);
-        Assert.Equal(0, handler.CallCount);
+        Assert.Equal(2, handler.CallCount);
     }
 
     [Fact]
-    public async Task ResolveAirportAsync_NoLocalMatchQueriesApiAndReturnsIcao()
+    public async Task ResolveAirportDetailsAsync_TypoUsesRelaxedNameSearchAndReturnsClosestAirport()
     {
-        using var airportFile = new TemporaryAirportDataFile("[]");
         using var handler = new StubHttpMessageHandler(request =>
         {
-            Assert.Equal(
-                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heathrow&sort=name&include=country%2Cregion&page%5Bsize%5D=15",
-                request.RequestUri?.ToString());
-
-            return CreateJsonResponse("""
-                {
-                  "data": [
-                    {
-                      "id": "EGLL",
-                      "type": "airports",
-                      "attributes": {
-                        "name": "London Heathrow Airport",
-                        "code": "EGLL",
-                        "type": "large_airport",
-                        "gps_code": "EGLL",
-                        "icao_code": "EGLL",
-                        "iata_code": "LHR",
-                        "local_code": null
-                      }
-                    }
-                  ]
-                }
-                """);
-        });
-        var service = CreateService(airportFile.Path, handler);
-
-        var result = await service.ResolveAirportAsync("Heathrow");
-
-        Assert.Equal("EGLL", result);
-        Assert.Equal(1, handler.CallCount);
-    }
-
-    [Fact]
-    public async Task ResolveAirportAsync_NameSearchUsesApiBeforeLocalManualList()
-    {
-        using var airportFile = new TemporaryAirportDataFile("""
-            [
-              {
-                "icao": "ZZZZ",
-                "iata": null,
-                "name": "Heathrow Practice Airport",
-                "city": "London",
-                "country": "United Kingdom"
-              }
-            ]
-            """);
-        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
+            return request.RequestUri?.ToString() switch
             {
-              "data": [
-                {
-                  "id": "EGLL",
-                  "type": "airports",
-                  "attributes": {
-                    "name": "London Heathrow Airport",
-                    "code": "EGLL",
-                    "type": "large_airport",
-                    "gps_code": "EGLL",
-                    "icao_code": "EGLL",
-                    "iata_code": "LHR",
-                    "local_code": null
-                  }
-                }
-              ]
-            }
-            """));
-        var service = CreateService(airportFile.Path, handler);
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heatrow&sort=name&include=country%2Cregion&page%5Bsize%5D=20"
+                    => CreateJsonResponse("""{ "data": [] }"""),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heatr&sort=name&include=country%2Cregion&page%5Bsize%5D=50"
+                    => CreateJsonResponse("""{ "data": [] }"""),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heat&sort=name&include=country%2Cregion&page%5Bsize%5D=50"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"),
+                        CreateAirportResource("ZXHX", "Heathrow Downtown Heliport", "heliport", null))),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=He&sort=name&include=country%2Cregion&page%5Bsize%5D=50"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))),
+                _ => throw new Xunit.Sdk.XunitException($"Unexpected request URI: {request.RequestUri}")
+            };
+        });
+        var service = CreateService(handler);
 
-        var result = await service.ResolveAirportAsync("Heathrow");
+        var result = await service.ResolveAirportDetailsAsync("Heatrow");
 
-        Assert.Equal("EGLL", result);
-        Assert.Equal(1, handler.CallCount);
+        Assert.NotNull(result);
+        Assert.Equal("EGLL", result!.StationId);
+        Assert.Equal("London Heathrow Airport", result.DisplayName);
     }
 
     [Fact]
-    public async Task ResolveAirportAsync_ApiFailureFallsBackToLocalAirportSearch()
+    public async Task GetSuggestionsAsync_TypoReturnsClosestAirportInSuggestions()
     {
-        using var airportFile = new TemporaryAirportDataFile("""
-            [
-              {
-                "icao": "EGLL",
-                "iata": "LHR",
-                "name": "London Heathrow Airport",
-                "city": "London",
-                "country": "United Kingdom"
-              }
-            ]
-            """);
-        using var handler = new StubHttpMessageHandler(_ => throw new HttpRequestException("boom"));
-        var service = CreateService(airportFile.Path, handler);
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            return request.RequestUri?.ToString() switch
+            {
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heatrow&sort=name&include=country%2Cregion&page%5Bsize%5D=20"
+                    => CreateJsonResponse("""{ "data": [] }"""),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heatr&sort=name&include=country%2Cregion&page%5Bsize%5D=50"
+                    => CreateJsonResponse("""{ "data": [] }"""),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=Heat&sort=name&include=country%2Cregion&page%5Bsize%5D=50"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"),
+                        CreateAirportResource("EGHE", "Heathrow Executive Airfield", "small_airport", null))),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=He&sort=name&include=country%2Cregion&page%5Bsize%5D=50"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))),
+                _ => throw new Xunit.Sdk.XunitException($"Unexpected request URI: {request.RequestUri}")
+            };
+        });
+        var service = CreateService(handler);
 
-        var result = await service.ResolveAirportAsync("Heathrow");
+        var suggestions = await service.GetSuggestionsAsync("Heatrow");
 
-        Assert.Equal("EGLL", result);
-        Assert.Equal(1, handler.CallCount);
+        Assert.NotEmpty(suggestions);
+        Assert.Equal("EGLL", suggestions[0].StationId);
+        Assert.Equal("London Heathrow Airport", suggestions[0].DisplayName);
+        Assert.Equal("EGLL - London Heathrow Airport", suggestions[0].DisplayText);
+        Assert.Equal("EGLL - London Heathrow Airport", suggestions[0].ToString());
     }
 
     [Fact]
     public async Task ResolveAirportAsync_HttpFailureFallsBackToHeuristic()
     {
-        using var airportFile = new TemporaryAirportDataFile("[]");
         using var handler = new StubHttpMessageHandler(_ => throw new HttpRequestException("boom"));
-        var service = CreateService(airportFile.Path, handler);
+        var service = CreateService(handler);
 
         var result = await service.ResolveAirportAsync("egll");
 
@@ -148,27 +145,9 @@ public class AirportLookupServiceTests
     [Fact]
     public async Task ResolveAirportAsync_CachesApiResultsByNormalizedInput()
     {
-        using var airportFile = new TemporaryAirportDataFile("[]");
-        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
-            {
-              "data": [
-                {
-                  "id": "EGLL",
-                    "type": "airports",
-                    "attributes": {
-                      "name": "London Heathrow Airport",
-                      "code": "EGLL",
-                      "type": "large_airport",
-                      "gps_code": "EGLL",
-                      "icao_code": "EGLL",
-                      "iata_code": "LHR",
-                      "local_code": null
-                    }
-                }
-              ]
-            }
-            """));
-        var service = CreateService(airportFile.Path, handler);
+        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(CreateSearchResponse(
+            CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))));
+        var service = CreateService(handler);
 
         var firstResult = await service.ResolveAirportAsync("Heathrow");
         var secondResult = await service.ResolveAirportAsync("heathrow");
@@ -181,54 +160,24 @@ public class AirportLookupServiceTests
     [Fact]
     public async Task ResolveAirportAsync_ApiPrefersOperationalAirportType()
     {
-        using var airportFile = new TemporaryAirportDataFile("[]");
-        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
-            {
-              "data": [
-                {
-                  "id": "ZXHX",
-                  "type": "airports",
-                  "attributes": {
-                    "name": "Heathrow Downtown Heliport",
-                    "code": "ZXHX",
-                    "type": "heliport",
-                    "gps_code": "ZXHX",
-                    "icao_code": "ZXHX",
-                    "iata_code": null,
-                    "local_code": null
-                  }
-                },
-                {
-                  "id": "EGLL",
-                  "type": "airports",
-                  "attributes": {
-                    "name": "London Heathrow Airport",
-                    "code": "EGLL",
-                    "type": "large_airport",
-                    "gps_code": "EGLL",
-                    "icao_code": "EGLL",
-                    "iata_code": "LHR",
-                    "local_code": null
-                  }
-                }
-              ]
-            }
-            """));
-        var service = CreateService(airportFile.Path, handler);
+        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse(CreateSearchResponse(
+            CreateAirportResource("ZXHX", "Heathrow Downtown Heliport", "heliport", null),
+            CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))));
+        var service = CreateService(handler);
 
         var result = await service.ResolveAirportAsync("Heathrow");
 
         Assert.Equal("EGLL", result);
     }
 
-    private static AirportLookupService CreateService(string dataPath, HttpMessageHandler handler)
+    private static AirportLookupService CreateService(HttpMessageHandler handler)
     {
         var client = new HttpClient(handler)
         {
             BaseAddress = new Uri("https://airportsapi.com/api/")
         };
 
-        return new AirportLookupService(dataPath, new StubHttpClientFactory(client));
+        return new AirportLookupService(new StubHttpClientFactory(client));
     }
 
     private static HttpResponseMessage CreateJsonResponse(string json)
@@ -237,6 +186,47 @@ public class AirportLookupServiceTests
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+    }
+
+    private static string CreateSingleAirportResponse(string stationId, string name, string airportType, string? iataCode)
+    {
+        return $$"""
+            {
+              "data": {{CreateAirportResource(stationId, name, airportType, iataCode)}}
+            }
+            """;
+    }
+
+    private static string CreateSearchResponse(params string[] airportResources)
+    {
+        return $$"""
+            {
+              "data": [
+                {{string.Join(",\n        ", airportResources)}}
+              ]
+            }
+            """;
+    }
+
+    private static string CreateAirportResource(string stationId, string name, string airportType, string? iataCode)
+    {
+        var serializedIataCode = iataCode == null ? "null" : $"\"{iataCode}\"";
+
+        return $$"""
+            {
+              "id": "{{stationId}}",
+              "type": "airports",
+              "attributes": {
+                "name": "{{name}}",
+                "code": "{{stationId}}",
+                "type": "{{airportType}}",
+                "gps_code": "{{stationId}}",
+                "icao_code": "{{stationId}}",
+                "iata_code": {{serializedIataCode}},
+                "local_code": null
+              }
+            }
+            """;
     }
 
     private sealed class StubHttpClientFactory : IHttpClientFactory
@@ -269,25 +259,6 @@ public class AirportLookupServiceTests
         {
             CallCount++;
             return Task.FromResult(_responseFactory(request));
-        }
-    }
-
-    private sealed class TemporaryAirportDataFile : IDisposable
-    {
-        public TemporaryAirportDataFile(string json)
-        {
-            Path = System.IO.Path.Combine(AppContext.BaseDirectory, $"airports-{Guid.NewGuid():N}.json");
-            File.WriteAllText(Path, json);
-        }
-
-        public string Path { get; }
-
-        public void Dispose()
-        {
-            if (File.Exists(Path))
-            {
-                File.Delete(Path);
-            }
         }
     }
 }

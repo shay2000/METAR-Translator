@@ -97,11 +97,11 @@ The app uses the **Aviation Weather Center Data API** to fetch METAR data.
 - The app sets a custom `User-Agent` and caches successful responses for 60 seconds
 - The Aviation Weather Center asks clients to stay under 100 requests per minute and to avoid polling the same thread more often than once per minute
 
-### Adding More Airports
+### Airport Search
 
-The app now uses AirportsAPI for worldwide airport lookups, so you normally do not need to edit `airports.json` manually.
+The app uses AirportsAPI for worldwide airport lookups.
 
-`airports.json` is kept only as a lightweight offline fallback for packaged builds. If the airport API is unavailable, the app can still resolve a built-in subset of common airports.
+Airport resolution is network-based. If AirportsAPI is unavailable, the app falls back to direct 3-4 letter code heuristics, but name-based airport search requires internet access.
 
 ## Usage
 
@@ -121,12 +121,11 @@ The app now uses AirportsAPI for worldwide airport lookups, so you normally do n
 
 ```
 MetarViewer/
-├── Models/              # Data models (MetarData, Airport, API responses)
+├── Models/              # Data models (METAR data and API responses)
 ├── Services/            # Business logic (METAR API, airport lookup)
 ├── ViewModels/          # MVVM view models (MainViewModel)
 ├── Views/               # UI windows (MainWindow)
 ├── Helpers/             # Utilities (MetarDecoder, converters)
-├── Data/                # Airport database (airports.json)
 └── Assets/              # Images and resources
 
 MetarViewer.Tests/       # Unit tests for decoder logic
@@ -136,7 +135,7 @@ MetarViewer.Tests/       # Unit tests for decoder logic
 
 The app follows **MVVM (Model-View-ViewModel)** pattern:
 
-- **Models**: Plain data classes (MetarData, Airport)
+- **Models**: Plain data classes for METAR data and API responses
 - **Services**: API calls and data access (`AviationWeatherMetarService`, `AirportLookupService`)
 - **ViewModels**: UI logic and state management (MainViewModel)
 - **Views**: XAML UI definitions (MainWindow)
@@ -189,7 +188,7 @@ Share this folder:
 
 `publish\win-x64-self-contained\`
 
-Do **not** share only `MetarViewer.exe`. The app also needs its supporting files, including `Data\airports.json`.
+Do **not** share only `MetarViewer.exe`. The app still needs the rest of the published WinUI support files that ship alongside the executable.
 
 ## Troubleshooting
 
@@ -210,7 +209,7 @@ Do **not** share only `MetarViewer.exe`. The app also needs its supporting files
 ### "Could not find airport"
 
 **Causes**:
-- Airport not in local database
+- Airport lookup did not return a match
 - Typo in search term
 
 **Solutions**:

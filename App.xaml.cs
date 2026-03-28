@@ -4,7 +4,6 @@ using MetarViewer.Services;
 using MetarViewer.ViewModels;
 using MetarViewer.Views;
 using System;
-using System.IO;
 
 namespace MetarViewer;
 
@@ -40,9 +39,8 @@ public partial class App : Application
         });
 
         // Airport lookup service
-        var dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "airports.json");
         services.AddSingleton<IAirportLookupService>(sp =>
-            new AirportLookupService(dataPath, sp.GetRequiredService<IHttpClientFactory>()));
+            new AirportLookupService(sp.GetRequiredService<IHttpClientFactory>()));
 
         // ViewModels
         services.AddTransient<MainViewModel>();

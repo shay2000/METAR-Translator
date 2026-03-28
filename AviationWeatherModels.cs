@@ -7,6 +7,9 @@ public class AviationWeatherMetarResponse
     [JsonPropertyName("icaoId")]
     public string? IcaoId { get; set; }
 
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
     [JsonPropertyName("reportTime")]
     public string? ReportTime { get; set; }
 

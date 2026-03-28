@@ -118,7 +118,7 @@ public class MetarDecoderTests
     }
 
     [Fact]
-    public void DecodeAltimeter_ConvertsToHpa()
+    public void DecodeAltimeter_InHgValue_ShowsInHgAndHpa()
     {
         // Arrange
         var metar = new MetarData
@@ -132,12 +132,13 @@ public class MetarDecoderTests
         // Assert
         Assert.Contains("29.92", result);
         Assert.Contains("hPa", result);
+        Assert.Contains("inHg", result);
         // Should be approximately 1013 hPa
         Assert.Contains("1013", result);
     }
 
     [Fact]
-    public void DecodeAltimeter_WithHpaValue_DoesNotConvertAgain()
+    public void DecodeAltimeter_HpaValue_ShowsHpaAndInHg()
     {
         // Arrange
         var metar = new MetarData
@@ -151,7 +152,8 @@ public class MetarDecoderTests
 
         // Assert
         Assert.Contains("1026", result);
-        Assert.DoesNotContain("inHg", result);
+        Assert.Contains("inHg", result);
+        Assert.Contains("30.30", result);
     }
 
     [Fact]

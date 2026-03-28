@@ -14,6 +14,7 @@ public class AviationWeatherMetarServiceTests
             [
               {
                 "icaoId": "KJFK",
+                "name": "John F Kennedy International Airport",
                 "obsTime": 1774713060,
                 "reportTime": "2026-03-28T16:00:00.000Z",
                 "temp": 3.9,
@@ -38,6 +39,7 @@ public class AviationWeatherMetarServiceTests
 
         Assert.NotNull(result);
         Assert.Equal("KJFK", result!.StationId);
+        Assert.Equal("John F Kennedy International Airport", result.StationName);
         Assert.Equal(4, result.Temperature);
         Assert.Equal(-14, result.DewPoint);
         Assert.Equal(320, result.WindDirection);

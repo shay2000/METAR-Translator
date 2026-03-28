@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MetarViewer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4fb8bbd3b5ef1ec1c277ff94398e98de0445f99d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3bea7cb63f83fbbba1bfff6afa40164a7ed2fc46")]
 [assembly: System.Reflection.AssemblyProductAttribute("MetarViewer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MetarViewer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

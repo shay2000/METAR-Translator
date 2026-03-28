@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MetarViewer.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f36a563124b845430ac701d03eddff7d64f8340f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3bea7cb63f83fbbba1bfff6afa40164a7ed2fc46")]
 [assembly: System.Reflection.AssemblyProductAttribute("MetarViewer.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MetarViewer.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

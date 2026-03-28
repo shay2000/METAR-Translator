@@ -75,13 +75,17 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBox
+                                <AutoSuggestBox
                                     Grid.Column="0"
-                                    x:Name="SearchTextBox"
-                                    Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    PlaceholderText="ICAO, IATA, or airport name (e.g., EGLL, LHR, London Heathrow)"
+                                    x:Name="SearchBox"
+                                    Text="{x:Bind ViewModel.SearchText, Mode=TwoWay}"
+                                    ItemsSource="{x:Bind ViewModel.AirportSuggestions, Mode=OneWay}"
+                                    TextMemberPath="DisplayText"
+                                    PlaceholderText="ICAO, IATA, or airport name (typos supported)"
                                     Margin="0,0,12,0"
-                                    KeyDown="SearchTextBox_KeyDown"/>
+                                    TextChanged="SearchBox_TextChanged"
+                                    SuggestionChosen="SearchBox_SuggestionChosen"
+                                    QuerySubmitted="SearchBox_QuerySubmitted"/>
 
                                 <Button
                                     Grid.Column="1"
@@ -133,10 +137,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0">
+                                    <StackPanel Grid.Column="0" Spacing="4">
                                         <TextBlock
-                                            Text="{x:Bind ViewModel.CurrentMetar.StationId, Mode=OneWay}"
-                                            Style="{StaticResource TitleTextBlockStyle}"/>
+                                            Text="{x:Bind ViewModel.StationHeaderText, Mode=OneWay}"
+                                            Style="{StaticResource TitleTextBlockStyle}"
+                                            TextWrapping="WrapWholeWords"/>
                                         <TextBlock
                                             Text="{x:Bind ViewModel.ObservationTimeText, Mode=OneWay}"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"

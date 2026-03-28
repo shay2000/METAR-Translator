@@ -14,9 +14,13 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IMetarService _metarService;
     private readonly IAirportLookupService _airportLookupService;
+    private AirportSuggestion? _selectedAirportSuggestion;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    private IReadOnlyList<AirportSuggestion> _airportSuggestions = Array.Empty<AirportSuggestion>();
 
     [ObservableProperty]
     private bool _isLoading;
@@ -76,10 +80,26 @@ public partial class MainViewModel : ObservableObject
             ? $"{time:dd MMM yyyy HH:mm} UTC"
             : string.Empty;
 
+    public string StationHeaderText =>
+        CurrentMetar is null
+            ? string.Empty
+            : string.IsNullOrWhiteSpace(CurrentMetar.StationName)
+                ? CurrentMetar.StationId
+                : $"{CurrentMetar.StationId} - {CurrentMetar.StationName}";
+
     public MainViewModel(IMetarService metarService, IAirportLookupService airportLookupService)
     {
         _metarService = metarService;
         _airportLookupService = airportLookupService;
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        if (_selectedAirportSuggestion != null &&
+            !string.Equals(value.Trim(), _selectedAirportSuggestion.DisplayText, StringComparison.OrdinalIgnoreCase))
+        {
+            _selectedAirportSuggestion = null;
+        }
     }
 
     partial void OnIsLoadingChanged(bool value)
@@ -96,6 +116,7 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CurrentMetarVisibility));
         OnPropertyChanged(nameof(ObservationTimeText));
+        OnPropertyChanged(nameof(StationHeaderText));
     }
 
     partial void OnCurrentThemeChanged(ElementTheme value)
@@ -116,20 +137,20 @@ public partial class MainViewModel : ObservableObject
         IsLoading = true;
         ErrorMessage = null;
         CurrentMetar = null;
+        ClearAirportSuggestions();
 
         try
         {
-            // Resolve the airport
-            var stationId = await _airportLookupService.ResolveAirportAsync(SearchText);
+            var resolvedAirport = GetSelectedAirportResolution()
+                ?? await _airportLookupService.ResolveAirportDetailsAsync(SearchText);
 
-            if (string.IsNullOrEmpty(stationId))
+            if (resolvedAirport == null)
             {
                 ErrorMessage = "Could not find airport. Please check your input.";
                 return;
             }
 
-            // Fetch METAR
-            var metar = await _metarService.GetMetarAsync(stationId);
+            var metar = await _metarService.GetMetarAsync(resolvedAirport.StationId);
 
             if (metar == null)
             {
@@ -137,11 +158,15 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(resolvedAirport.DisplayName))
+            {
+                metar.StationName = resolvedAirport.DisplayName;
+            }
+
             CurrentMetar = metar;
             DecodeMetar(metar);
 
-            // Save last successful station
-            SaveLastStation(stationId);
+            SaveLastStation(resolvedAirport.StationId);
         }
         catch (Exception ex)
         {
@@ -169,6 +194,39 @@ public partial class MainViewModel : ObservableObject
             SearchText = lastStation;
             await FetchMetarAsync();
         }
+    }
+
+    public async Task UpdateAirportSuggestionsAsync(string input, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(input) || input.Trim().Length < 2)
+        {
+            AirportSuggestions = Array.Empty<AirportSuggestion>();
+            return;
+        }
+
+        try
+        {
+            AirportSuggestions = await _airportLookupService.GetSuggestionsAsync(input, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch
+        {
+            AirportSuggestions = Array.Empty<AirportSuggestion>();
+        }
+    }
+
+    public void SelectAirportSuggestion(AirportSuggestion suggestion)
+    {
+        _selectedAirportSuggestion = suggestion;
+        SearchText = suggestion.DisplayText;
+        AirportSuggestions = Array.Empty<AirportSuggestion>();
+    }
+
+    public void ClearAirportSuggestions()
+    {
+        AirportSuggestions = Array.Empty<AirportSuggestion>();
     }
 
     private void DecodeMetar(MetarData metar)
@@ -206,5 +264,15 @@ public partial class MainViewModel : ObservableObject
         {
             return null;
         }
+    }
+
+    private ResolvedAirport? GetSelectedAirportResolution()
+    {
+        return _selectedAirportSuggestion == null
+            ? null
+            : new ResolvedAirport(
+                _selectedAirportSuggestion.StationId,
+                _selectedAirportSuggestion.DisplayName,
+                _selectedAirportSuggestion.IataCode);
     }
 }
