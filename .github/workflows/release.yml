@@ -1,0 +1,77 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create, for example v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore .\MetarViewer.csproj
+
+      - name: Run tests
+        run: dotnet test .\MetarViewer.Tests.csproj --configuration Release --no-restore
+
+      - name: Publish Windows package
+        run: >
+          dotnet publish .\MetarViewer.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:Platform=x64
+          -p:WindowsPackageType=None
+          -p:WindowsAppSDKSelfContained=true
+          -p:PublishDir=.\publish\MetarViewer-win11-x64-self-contained\
+
+      - name: Create release ZIP
+        shell: pwsh
+        run: Compress-Archive -Path .\publish\MetarViewer-win11-x64-self-contained\* -DestinationPath .\publish\MetarViewer-win11-x64-self-contained.zip -Force
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag }}"
+          }
+          else {
+            $tag = "${{ github.ref_name }}"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Release tag was not provided."
+          }
+
+          $repo = "${{ github.repository }}"
+          $assetPath = Join-Path $PWD "publish\MetarViewer-win11-x64-self-contained.zip"
+
+          gh release view $tag --repo $repo *> $null
+
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $assetPath --clobber --repo $repo
+          }
+          else {
+            gh release create $tag $assetPath --title "Metar Viewer $tag" --generate-notes --repo $repo --target $env:GITHUB_SHA
+          }

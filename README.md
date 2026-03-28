@@ -21,7 +21,7 @@ A modern Windows 11 desktop application for viewing aviation weather reports (ME
 
 ### Easiest Option
 
-If the repository has a packaged Windows release attached, download the self-contained ZIP package, extract it, and run `MetarViewer.exe`.
+Download the latest packaged Windows build from the [GitHub Releases page](https://github.com/shay2000/METAR-Translator/releases/latest), extract the self-contained ZIP package, and run `MetarViewer.exe`.
 
 **Important**: do **not** download only `MetarViewer.exe` by itself. This WinUI 3 app needs the supporting files from the published folder alongside the `.exe`.
 
