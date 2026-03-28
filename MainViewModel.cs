@@ -57,6 +57,20 @@ public partial class MainViewModel : ObservableObject
 
     public Visibility CurrentMetarVisibility => CurrentMetar is null ? Visibility.Collapsed : Visibility.Visible;
 
+    public string ThemeToggleGlyph => CurrentTheme switch
+    {
+        ElementTheme.Dark => "\u263E",
+        ElementTheme.Light => "\u2600",
+        _ => "\u25D0"
+    };
+
+    public string ThemeToggleToolTip => CurrentTheme switch
+    {
+        ElementTheme.Dark => "Dark mode enabled. Click to switch to light mode",
+        ElementTheme.Light => "Light mode enabled. Click to switch to dark mode",
+        _ => "Theme follows the app default. Click to switch to dark mode"
+    };
+
     public string ObservationTimeText =>
         CurrentMetar is { ObservationTime: var time } && time != default
             ? $"{time:dd MMM yyyy HH:mm} UTC"
@@ -82,6 +96,12 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CurrentMetarVisibility));
         OnPropertyChanged(nameof(ObservationTimeText));
+    }
+
+    partial void OnCurrentThemeChanged(ElementTheme value)
+    {
+        OnPropertyChanged(nameof(ThemeToggleGlyph));
+        OnPropertyChanged(nameof(ThemeToggleToolTip));
     }
 
     [RelayCommand]
@@ -136,9 +156,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTheme()
     {
-        CurrentTheme = CurrentTheme == ElementTheme.Light 
-            ? ElementTheme.Dark 
-            : ElementTheme.Light;
+        CurrentTheme = CurrentTheme == ElementTheme.Dark
+            ? ElementTheme.Light
+            : ElementTheme.Dark;
     }
 
     public async Task LoadLastStationAsync()

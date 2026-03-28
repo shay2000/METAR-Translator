@@ -99,23 +99,9 @@ The app uses the **Aviation Weather Center Data API** to fetch METAR data.
 
 ### Adding More Airports
 
-The app includes a database of major airports in `airports.json`, and falls back to AirportsAPI for network lookups when a local match is not found.
+The app now uses AirportsAPI for worldwide airport lookups, so you normally do not need to edit `airports.json` manually.
 
-To add more airports:
-1. Open `airports.json`
-2. Add entries in this format:
-   ```json
-   {
-     "icao": "KJFK",
-     "iata": "JFK",
-     "name": "John F Kennedy International Airport",
-     "city": "New York",
-     "country": "United States"
-   }
-   ```
-3. Rebuild the application
-
-**Note**: The IATA field can be null for airports without an IATA code.
+`airports.json` is kept only as a lightweight offline fallback for packaged builds. If the airport API is unavailable, the app can still resolve a built-in subset of common airports.
 
 ## Usage
 
@@ -229,7 +215,7 @@ Do **not** share only `MetarViewer.exe`. The app also needs its supporting files
 
 **Solutions**:
 - Try the exact ICAO code (4 letters)
-- Add the airport to `airports.json`
+- Try the airport's official name or IATA/ICAO code
 - The app will still try 3-4 letter codes directly
 
 ### App won't start

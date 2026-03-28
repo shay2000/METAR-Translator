@@ -49,11 +49,11 @@ public class AirportLookupService : IAirportLookupService
 
         await EnsureAirportsLoadedAsync();
 
-        var localMatch = ResolveFromLocalAirports(trimmedInput, normalizedInput);
-        if (!string.IsNullOrEmpty(localMatch))
+        var localCodeMatch = ResolveFromLocalCodeMatch(normalizedInput);
+        if (!string.IsNullOrEmpty(localCodeMatch))
         {
-            CacheLookupResult(normalizedInput, localMatch);
-            return localMatch;
+            CacheLookupResult(normalizedInput, localCodeMatch);
+            return localCodeMatch;
         }
 
         var apiMatch = await ResolveViaAirportsApiAsync(trimmedInput, normalizedInput);
@@ -61,6 +61,13 @@ public class AirportLookupService : IAirportLookupService
         {
             CacheLookupResult(normalizedInput, apiMatch);
             return apiMatch;
+        }
+
+        var localMatch = ResolveFromLocalAirportSearch(trimmedInput);
+        if (!string.IsNullOrEmpty(localMatch))
+        {
+            CacheLookupResult(normalizedInput, localMatch);
+            return localMatch;
         }
 
         var heuristicMatch = ResolveViaHeuristic(normalizedInput);
@@ -134,7 +141,7 @@ public class AirportLookupService : IAirportLookupService
         }
     }
 
-    private string? ResolveFromLocalAirports(string trimmedInput, string normalizedInput)
+    private string? ResolveFromLocalCodeMatch(string normalizedInput)
     {
         if (_airports == null || _airports.Count == 0)
         {
@@ -154,6 +161,16 @@ public class AirportLookupService : IAirportLookupService
         if (exactIata != null)
         {
             return exactIata.Icao;
+        }
+
+        return null;
+    }
+
+    private string? ResolveFromLocalAirportSearch(string trimmedInput)
+    {
+        if (_airports == null || _airports.Count == 0)
+        {
+            return null;
         }
 
         var nameMatch = _airports.FirstOrDefault(a =>
@@ -178,16 +195,24 @@ public class AirportLookupService : IAirportLookupService
                     return directMatch;
                 }
 
-                var codeMatches = await SearchAirportsAsync(client, ("filter[code]", normalizedInput));
-                var exactCodeMatch = SelectExactCodeMatch(codeMatches, normalizedInput);
+                var codeMatches = await SearchAirportsAsync(
+                    client,
+                    ("filter[code]", normalizedInput),
+                    ("sort", "name"),
+                    ("include", "country,region"));
+                var exactCodeMatch = SelectBestApiMatch(codeMatches, trimmedInput, normalizedInput);
                 if (!string.IsNullOrEmpty(exactCodeMatch))
                 {
                     return exactCodeMatch;
                 }
             }
 
-            var nameMatches = await SearchAirportsAsync(client, ("filter[name]", trimmedInput));
-            var nameMatch = SelectBestNameMatch(nameMatches, trimmedInput, normalizedInput);
+            var nameMatches = await SearchAirportsAsync(
+                client,
+                ("filter[name]", trimmedInput),
+                ("sort", "name"),
+                ("include", "country,region"));
+            var nameMatch = SelectBestApiMatch(nameMatches, trimmedInput, normalizedInput);
             if (!string.IsNullOrEmpty(nameMatch))
             {
                 return nameMatch;
@@ -225,14 +250,14 @@ public class AirportLookupService : IAirportLookupService
 
     private static async Task<IReadOnlyList<AirportsApiAirportResource>> SearchAirportsAsync(
         HttpClient client,
-        params (string Key, string Value)[] filters)
+        params (string Key, string Value)[] queryParameters)
     {
-        var queryParameters = filters
-            .Where(filter => !string.IsNullOrWhiteSpace(filter.Value))
-            .Select(filter => $"{Uri.EscapeDataString(filter.Key)}={Uri.EscapeDataString(filter.Value)}")
-            .Append($"{Uri.EscapeDataString("page[size]")}=10");
+        var serializedQueryParameters = queryParameters
+            .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
+            .Select(parameter => $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value)}")
+            .Append($"{Uri.EscapeDataString("page[size]")}=15");
 
-        using var response = await client.GetAsync($"airports?{string.Join("&", queryParameters)}");
+        using var response = await client.GetAsync($"airports?{string.Join("&", serializedQueryParameters)}");
 
         if (!response.IsSuccessStatusCode)
         {
@@ -246,38 +271,22 @@ public class AirportLookupService : IAirportLookupService
             : Array.Empty<AirportsApiAirportResource>();
     }
 
-    private static string? SelectExactCodeMatch(IEnumerable<AirportsApiAirportResource> airports, string normalizedInput)
-    {
-        var exactMatch = airports.FirstOrDefault(airport => MatchesAnyCode(airport.Attributes, normalizedInput));
-        return GetStationIdentifier(exactMatch?.Attributes);
-    }
-
-    private static string? SelectBestNameMatch(
+    private static string? SelectBestApiMatch(
         IEnumerable<AirportsApiAirportResource> airports,
         string trimmedInput,
         string normalizedInput)
     {
-        var exactCodeMatch = airports.FirstOrDefault(airport => MatchesAnyCode(airport.Attributes, normalizedInput));
-        if (exactCodeMatch != null)
-        {
-            return GetStationIdentifier(exactCodeMatch.Attributes);
-        }
+        var bestMatch = airports
+            .Select(airport => new
+            {
+                StationIdentifier = GetStationIdentifier(airport.Attributes),
+                Score = ScoreAirportMatch(airport.Attributes, trimmedInput, normalizedInput)
+            })
+            .Where(candidate => !string.IsNullOrEmpty(candidate.StationIdentifier) && candidate.Score > int.MinValue)
+            .OrderByDescending(candidate => candidate.Score)
+            .FirstOrDefault();
 
-        var exactNameMatch = airports.FirstOrDefault(airport =>
-            string.Equals(airport.Attributes?.Name, trimmedInput, StringComparison.OrdinalIgnoreCase));
-        if (exactNameMatch != null)
-        {
-            return GetStationIdentifier(exactNameMatch.Attributes);
-        }
-
-        var partialNameMatch = airports.FirstOrDefault(airport =>
-            airport.Attributes?.Name?.Contains(trimmedInput, StringComparison.OrdinalIgnoreCase) == true);
-        if (partialNameMatch != null)
-        {
-            return GetStationIdentifier(partialNameMatch.Attributes);
-        }
-
-        return null;
+        return bestMatch?.StationIdentifier;
     }
 
     private static bool MatchesAnyCode(AirportsApiAirportAttributes? attributes, string normalizedInput)
@@ -292,6 +301,64 @@ public class AirportLookupService : IAirportLookupService
             || string.Equals(attributes.IataCode, normalizedInput, StringComparison.OrdinalIgnoreCase)
             || string.Equals(attributes.GpsCode, normalizedInput, StringComparison.OrdinalIgnoreCase)
             || string.Equals(attributes.LocalCode, normalizedInput, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ScoreAirportMatch(
+        AirportsApiAirportAttributes? attributes,
+        string trimmedInput,
+        string normalizedInput)
+    {
+        if (attributes == null || !IsSupportedAirportType(attributes.Type))
+        {
+            return int.MinValue;
+        }
+
+        var score = GetAirportTypeScore(attributes.Type);
+        var airportName = attributes.Name ?? string.Empty;
+
+        if (MatchesAnyCode(attributes, normalizedInput))
+        {
+            score += 500;
+        }
+
+        if (string.Equals(airportName, trimmedInput, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 300;
+        }
+        else if (airportName.StartsWith(trimmedInput, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 220;
+        }
+        else if (airportName.Contains(trimmedInput, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 150;
+        }
+
+        if (!string.IsNullOrWhiteSpace(attributes.IataCode))
+        {
+            score += 10;
+        }
+
+        return score;
+    }
+
+    private static bool IsSupportedAirportType(string? airportType)
+    {
+        return !string.Equals(airportType, "closed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int GetAirportTypeScore(string? airportType)
+    {
+        return airportType switch
+        {
+            "large_airport" => 120,
+            "medium_airport" => 90,
+            "small_airport" => 60,
+            "seaplane_base" => 25,
+            "heliport" => -10,
+            "balloonport" => -20,
+            _ => 0
+        };
     }
 
     private static string? GetStationIdentifier(AirportsApiAirportAttributes? attributes)
@@ -361,6 +428,9 @@ public class AirportLookupService : IAirportLookupService
 
         [JsonPropertyName("code")]
         public string? Code { get; set; }
+
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
 
         [JsonPropertyName("icao_code")]
         public string? IcaoCode { get; set; }

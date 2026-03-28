@@ -37,8 +37,11 @@
                     Command="{x:Bind ViewModel.ToggleThemeCommand}"
                     Background="Transparent"
                     BorderThickness="0"
-                    ToolTipService.ToolTip="Toggle theme">
-                    <FontIcon Glyph="&#xE771;" FontSize="16"/>
+                    ToolTipService.ToolTip="{x:Bind ViewModel.ThemeToggleToolTip, Mode=OneWay}">
+                    <TextBlock
+                        Text="{x:Bind ViewModel.ThemeToggleGlyph, Mode=OneWay}"
+                        FontSize="20"
+                        VerticalAlignment="Center"/>
                 </Button>
             </Grid>
         </Border>
