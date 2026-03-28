@@ -2,6 +2,11 @@
 
 METAR Viewer is a Windows 11 desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format.
 
+> ⚠️ **Disclaimer:**  
+> METAR Viewer is intended **for virtual simulation and hobbyist use only**.  
+> **Never use this application, or any information it provides, for real-world aviation, flight planning, or navigation purposes.**  
+> Always obtain official weather and briefing information from certified sources before conducting any real-world flight.
+
 ![Windows 11](https://img.shields.io/badge/Windows-11-blue)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
