@@ -287,6 +287,3 @@ For issues or questions:
 ---
 
 **Built with ❤️ for the aviation community**
-#   M E T A R - T r a n s l a t o r  
- #   M E T A R - T r a n s l a t o r  
- 
