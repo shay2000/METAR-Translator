@@ -6,9 +6,18 @@ METAR Viewer is a Windows 11 desktop app for searching airports and viewing live
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## Download
+## Features
 
-Most people do not need to compile this app.
+- 🔍 **Flexible Airport Search**: Enter ICAO codes (e.g., EGLL), IATA codes (e.g., LHR), or airport names (e.g., "London Heathrow")
+- 📊 **Dual Display**: View both raw METAR data and human-readable decoded information
+- 🎨 **Liquid Glass UI**: Modern Windows 11 design with Mica backdrop and glassmorphic elements
+- 🌓 **Theme Toggle**: Switch between light and dark modes with a single click
+- ⚡ **Smart Caching**: Automatic 60-second response caching to minimize API calls
+- 💾 **Session Persistence**: Remembers your last searched airport across app restarts
+- ✈️ **Flight Categories**: Clear visual indication of VFR, MVFR, IFR, and LIFR conditions
+- 📱 **Responsive Design**: Adaptive layout that works well on different screen sizes
+
+## Download
 
 Download the latest packaged build from the [GitHub Releases page](https://github.com/shay2000/METAR-Translator/releases/latest), extract the ZIP, and run `MetarViewer.exe`.
 
@@ -91,6 +100,8 @@ dotnet test .\MetarViewer.Tests.csproj
 - Airport lookup: [AirportsAPI](https://airportsapi.com/docs/api)
 - Primary METAR source: [VATSIM METAR API](https://vatsim.dev/api/metar-api/get-metar/)
 - Fallback METAR source: [Aviation Weather Center Data API](https://aviationweather.gov/data/api/)
+
+**Built with ❤️ for the aviation community**
 
 ## License
 
