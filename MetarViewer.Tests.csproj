@@ -20,9 +20,13 @@
 
   <ItemGroup>
     <Compile Include="AirportLookupService.cs" Link="Source\AirportLookupService.cs" />
+    <Compile Include="AviationWeatherMetarService.cs" Link="Source\AviationWeatherMetarService.cs" />
+    <Compile Include="AviationWeatherModels.cs" Link="Source\AviationWeatherModels.cs" />
+    <Compile Include="IMetarService.cs" Link="Source\IMetarService.cs" />
     <Compile Include="MetarData.cs" Link="Source\MetarData.cs" />
     <Compile Include="MetarDecoder.cs" Link="Source\MetarDecoder.cs" />
     <Compile Include="MetarDecoderTests.cs" />
     <Compile Include="Tests\AirportLookupServiceTests.cs" />
+    <Compile Include="Tests\AviationWeatherMetarServiceTests.cs" />
   </ItemGroup>
 </Project>

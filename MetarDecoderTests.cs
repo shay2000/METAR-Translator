@@ -137,6 +137,24 @@ public class MetarDecoderTests
     }
 
     [Fact]
+    public void DecodeAltimeter_WithHpaValue_DoesNotConvertAgain()
+    {
+        // Arrange
+        var metar = new MetarData
+        {
+            Altimeter = 1026m,
+            AltimeterUnit = "hPa"
+        };
+
+        // Act
+        var result = MetarDecoder.DecodeAltimeter(metar);
+
+        // Assert
+        Assert.Contains("1026", result);
+        Assert.DoesNotContain("inHg", result);
+    }
+
+    [Fact]
     public void GetFlightCategoryDescription_VFR_ReturnsCorrectDescription()
     {
         // Act

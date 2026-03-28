@@ -100,7 +100,13 @@ public static class MetarDecoder
             return "Altimeter information not available";
         }
 
-        // Convert from inHg to hPa (1 inHg = 33.8639 hPa)
+        if (string.Equals(metar.AltimeterUnit, "hPa", StringComparison.OrdinalIgnoreCase) ||
+            (string.IsNullOrWhiteSpace(metar.AltimeterUnit) && metar.Altimeter >= 100))
+        {
+            var hpaFormat = metar.Altimeter == decimal.Truncate(metar.Altimeter.Value) ? "F0" : "F1";
+            return $"QNH {metar.Altimeter.Value.ToString(hpaFormat)} hPa";
+        }
+
         var hpa = metar.Altimeter * 33.8639m;
         return $"QNH {metar.Altimeter:F2} inHg ({hpa:F0} hPa)";
     }

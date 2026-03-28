@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="AvwxMetarService.cs" />
+    <Compile Remove="AvwxModels.cs" />
     <Compile Remove="MetarDecoderTests.cs" />
     <Compile Remove="Tests\**\*.cs" />
   </ItemGroup>

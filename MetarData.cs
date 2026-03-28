@@ -13,6 +13,7 @@ public class MetarData
     public decimal? Visibility { get; set; }
     public string? VisibilityUnit { get; set; }
     public decimal? Altimeter { get; set; }
+    public string? AltimeterUnit { get; set; }
     public List<CloudLayer> CloudLayers { get; set; } = new();
     public List<string> WeatherPhenomena { get; set; } = new();
     public string? FlightCategory { get; set; }

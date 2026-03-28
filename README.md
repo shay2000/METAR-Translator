@@ -87,21 +87,15 @@ Press `F5` or click the "Start" button in Visual Studio.
 
 ### API Access
 
-The app uses the **AVWX REST API** (https://avwx.rest) to fetch METAR data.
+The app uses the **Aviation Weather Center Data API** to fetch METAR data.
 
-**Free tier**: 
-- No API key required for basic testing
-- Limited to a few requests per minute
-- Sufficient for personal use
+**Endpoint**:
+- `GET https://aviationweather.gov/api/data/metar?ids={ICAO}&format=json`
 
-**Production use** (recommended):
-1. Sign up for a free account at https://avwx.rest
-2. Get your API token from the dashboard
-3. Open `AvwxMetarService.cs`
-4. Uncomment and update line 18:
-   ```csharp
-   _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer YOUR_API_TOKEN_HERE");
-   ```
+**Notes**:
+- No API key is required for normal app usage
+- The app sets a custom `User-Agent` and caches successful responses for 60 seconds
+- The Aviation Weather Center asks clients to stay under 100 requests per minute and to avoid polling the same thread more often than once per minute
 
 ### Adding More Airports
 
@@ -157,7 +151,7 @@ MetarViewer.Tests/       # Unit tests for decoder logic
 The app follows **MVVM (Model-View-ViewModel)** pattern:
 
 - **Models**: Plain data classes (MetarData, Airport)
-- **Services**: API calls and data access (AvwxMetarService, AirportLookupService)
+- **Services**: API calls and data access (`AviationWeatherMetarService`, `AirportLookupService`)
 - **ViewModels**: UI logic and state management (MainViewModel)
 - **Views**: XAML UI definitions (MainWindow)
 - **Dependency Injection**: Services are injected via Microsoft.Extensions.DependencyInjection
@@ -218,14 +212,14 @@ Do **not** share only `MetarViewer.exe`. The app also needs its supporting files
 **Causes**:
 - Network connectivity issue
 - Invalid station ID (airport doesn't report weather)
-- API rate limit reached (free tier)
-- AVWX service is down
+- Aviation Weather Center rate limit reached
+- Aviation Weather Center is temporarily unavailable
 
 **Solutions**:
 - Check internet connection
 - Try a major airport (KJFK, EGLL, LFPG)
 - Wait a minute and try again
-- Sign up for an API token for higher limits
+- Try again shortly if the weather service is temporarily unavailable
 
 ### "Could not find airport"
 
@@ -263,15 +257,15 @@ Do **not** share only `MetarViewer.exe`. The app also needs its supporting files
 - **.NET 8**: Latest .NET runtime
 - **Windows App SDK**: Windows 11 platform features
 - **CommunityToolkit.Mvvm**: MVVM helpers and commands
-- **AVWX REST API**: Aviation weather data source
+- **Aviation Weather Center Data API**: Aviation weather data source
 - **xUnit**: Unit testing framework
 
 ## API Documentation
 
-This app uses AVWX REST API:
-- Documentation: https://avwx.docs.apiary.io/
-- Endpoint: `GET /api/metar/{station_id}`
-- Response: JSON with parsed METAR fields
+This app uses the Aviation Weather Center Data API:
+- Documentation: https://aviationweather.gov/data/api/
+- Endpoint: `GET /api/data/metar?ids={station_id}&format=json`
+- Response: JSON array containing the latest METAR data for the requested station
 
 ## License
 
@@ -291,7 +285,7 @@ Contributions welcome! Areas for improvement:
 
 ## Acknowledgments
 
-- Weather data provided by AVWX (https://avwx.rest)
+- Weather data provided by the Aviation Weather Center (https://aviationweather.gov/data/api/)
 - Airport data compiled from various public sources
 - Windows 11 design guidelines followed throughout
 
@@ -299,7 +293,7 @@ Contributions welcome! Areas for improvement:
 
 For issues or questions:
 1. Check the Troubleshooting section above
-2. Review the AVWX API documentation
+2. Review the Aviation Weather Center API documentation
 3. Ensure all prerequisites are installed
 4. Try rebuilding from a clean state
 

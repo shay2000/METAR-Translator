@@ -26,7 +26,12 @@ public partial class App : Application
     private void ConfigureServices(ServiceCollection services)
     {
         // HttpClient for METAR service
-        services.AddHttpClient<IMetarService, AvwxMetarService>();
+        services.AddHttpClient<IMetarService, AviationWeatherMetarService>(client =>
+        {
+            client.BaseAddress = AviationWeatherMetarService.AviationWeatherBaseUri;
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
+        });
         services.AddHttpClient(AirportLookupService.AirportsApiHttpClientName, client =>
         {
             client.BaseAddress = AirportLookupService.AirportsApiBaseUri;
