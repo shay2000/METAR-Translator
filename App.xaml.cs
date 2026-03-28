@@ -24,10 +24,15 @@ public partial class App : Application
 
     private void ConfigureServices(ServiceCollection services)
     {
-        // HttpClient for METAR service
-        services.AddHttpClient<IMetarService, AviationWeatherMetarService>(client =>
+        services.AddHttpClient(AviationWeatherMetarService.AviationWeatherHttpClientName, client =>
         {
             client.BaseAddress = AviationWeatherMetarService.AviationWeatherBaseUri;
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
+        });
+        services.AddHttpClient(VatsimMetarService.VatsimMetarHttpClientName, client =>
+        {
+            client.BaseAddress = VatsimMetarService.VatsimMetarBaseUri;
             client.Timeout = TimeSpan.FromSeconds(10);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
         });
@@ -37,6 +42,9 @@ public partial class App : Application
             client.Timeout = TimeSpan.FromSeconds(10);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
         });
+
+        services.AddSingleton<IMetarService>(sp =>
+            new HybridMetarService(sp.GetRequiredService<IHttpClientFactory>()));
 
         // Airport lookup service
         services.AddSingleton<IAirportLookupService>(sp =>
