@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MetarViewer.Services;
@@ -18,6 +19,12 @@ public sealed partial class MainWindow : Window
 
         // Apply Mica background
         SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
+
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
+        if (File.Exists(iconPath))
+        {
+            AppWindow.SetIcon(iconPath);
+        }
 
         // Set window size
         AppWindow.Resize(new Windows.Graphics.SizeInt32(900, 800));

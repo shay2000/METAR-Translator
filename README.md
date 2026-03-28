@@ -87,15 +87,17 @@ Press `F5` or click the "Start" button in Visual Studio.
 
 ### API Access
 
-The app uses the **Aviation Weather Center Data API** to fetch METAR data.
+The app uses a hybrid METAR source strategy.
 
-**Endpoint**:
+**Endpoints**:
+- `GET https://metar.vatsim.net/{ICAO}?format=json`
 - `GET https://aviationweather.gov/api/data/metar?ids={ICAO}&format=json`
 
 **Notes**:
 - No API key is required for normal app usage
 - The app sets a custom `User-Agent` and caches successful responses for 60 seconds
-- The Aviation Weather Center asks clients to stay under 100 requests per minute and to avoid polling the same thread more often than once per minute
+- VATSIM is used as the primary METAR source, with Aviation Weather Center as a fallback
+- Airport name lookups use AirportsAPI for airport resolution and suggestions
 
 ### Airport Search
 
@@ -136,7 +138,7 @@ MetarViewer.Tests/       # Unit tests for decoder logic
 The app follows **MVVM (Model-View-ViewModel)** pattern:
 
 - **Models**: Plain data classes for METAR data and API responses
-- **Services**: API calls and data access (`AviationWeatherMetarService`, `AirportLookupService`)
+- **Services**: API calls and data access (`HybridMetarService`, `VatsimMetarService`, `AviationWeatherMetarService`, `AirportLookupService`)
 - **ViewModels**: UI logic and state management (MainViewModel)
 - **Views**: XAML UI definitions (MainWindow)
 - **Dependency Injection**: Services are injected via Microsoft.Extensions.DependencyInjection
@@ -197,14 +199,14 @@ Do **not** share only `MetarViewer.exe`. The app still needs the rest of the pub
 **Causes**:
 - Network connectivity issue
 - Invalid station ID (airport doesn't report weather)
-- Aviation Weather Center rate limit reached
-- Aviation Weather Center is temporarily unavailable
+- VATSIM and Aviation Weather Center both returned no current report
+- One of the weather providers is temporarily unavailable
 
 **Solutions**:
 - Check internet connection
 - Try a major airport (KJFK, EGLL, LFPG)
 - Wait a minute and try again
-- Try again shortly if the weather service is temporarily unavailable
+- Try again shortly if the weather providers are temporarily unavailable
 
 ### "Could not find airport"
 
@@ -242,15 +244,17 @@ Do **not** share only `MetarViewer.exe`. The app still needs the rest of the pub
 - **.NET 8**: Latest .NET runtime
 - **Windows App SDK**: Windows 11 platform features
 - **CommunityToolkit.Mvvm**: MVVM helpers and commands
-- **Aviation Weather Center Data API**: Aviation weather data source
+- **VATSIM METAR API**: Primary METAR data source
+- **Aviation Weather Center Data API**: Fallback METAR data source
+- **AirportsAPI**: Airport lookup and suggestions
 - **xUnit**: Unit testing framework
 
 ## API Documentation
 
-This app uses the Aviation Weather Center Data API:
-- Documentation: https://aviationweather.gov/data/api/
-- Endpoint: `GET /api/data/metar?ids={station_id}&format=json`
-- Response: JSON array containing the latest METAR data for the requested station
+This app uses:
+- VATSIM METAR API: https://vatsim.dev/api/metar-api/get-metar/
+- Aviation Weather Center Data API: https://aviationweather.gov/data/api/
+- AirportsAPI: https://airportsapi.com/docs/api
 
 ## License
 
@@ -270,15 +274,15 @@ Contributions welcome! Areas for improvement:
 
 ## Acknowledgments
 
-- Weather data provided by the Aviation Weather Center (https://aviationweather.gov/data/api/)
-- Airport data compiled from various public sources
+- Weather data provided by VATSIM and the Aviation Weather Center
+- Airport lookup powered by AirportsAPI
 - Windows 11 design guidelines followed throughout
 
 ## Support
 
 For issues or questions:
 1. Check the Troubleshooting section above
-2. Review the Aviation Weather Center API documentation
+2. Review the VATSIM or Aviation Weather Center API documentation
 3. Ensure all prerequisites are installed
 4. Try rebuilding from a clean state
 

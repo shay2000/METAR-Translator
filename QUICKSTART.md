@@ -52,21 +52,19 @@ Install these first:
 
 **"Could not retrieve METAR"?**
 - Check your internet connection
-- The free API tier has rate limits
+- One of the public weather providers may be temporarily unavailable
 - Try again in 60 seconds
 
-**Want unlimited requests?**
-1. Sign up at https://avwx.rest (free account)
-2. Get your API token
-3. Edit `MetarViewer/Services/AvwxMetarService.cs`
-4. Uncomment line 18 and add your token
-5. Rebuild
+**Still not getting a report?**
+1. Try a major reporting airport such as `EGLL`, `KJFK`, or `OMDB`
+2. Check that the airport actually publishes METAR data
+3. Try again shortly in case a provider is lagging
 
 ## What's Next?
 
 - Try other airports: KJFK, LFPG, RJTT
 - Toggle dark/light theme (button in top-right)
-- Add your favourite airports to `Data/airports.json`
+- Try airport names or partial searches in the search box
 - Read the full README.md for advanced features
 
 ## Need Help?
