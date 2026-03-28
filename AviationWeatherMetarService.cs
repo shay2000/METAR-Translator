@@ -7,6 +7,7 @@ namespace MetarViewer.Services;
 
 public class AviationWeatherMetarService : IMetarService
 {
+    internal const string AviationWeatherHttpClientName = "AviationWeather";
     public static readonly Uri AviationWeatherBaseUri = new("https://aviationweather.gov/api/data/");
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);

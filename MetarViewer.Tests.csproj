@@ -22,11 +22,16 @@
     <Compile Include="AirportLookupService.cs" Link="Source\AirportLookupService.cs" />
     <Compile Include="AviationWeatherMetarService.cs" Link="Source\AviationWeatherMetarService.cs" />
     <Compile Include="AviationWeatherModels.cs" Link="Source\AviationWeatherModels.cs" />
+    <Compile Include="HybridMetarService.cs" Link="Source\HybridMetarService.cs" />
     <Compile Include="IMetarService.cs" Link="Source\IMetarService.cs" />
     <Compile Include="MetarData.cs" Link="Source\MetarData.cs" />
     <Compile Include="MetarDecoder.cs" Link="Source\MetarDecoder.cs" />
+    <Compile Include="RawMetarParser.cs" Link="Source\RawMetarParser.cs" />
+    <Compile Include="VatsimMetarService.cs" Link="Source\VatsimMetarService.cs" />
     <Compile Include="MetarDecoderTests.cs" />
     <Compile Include="Tests\AirportLookupServiceTests.cs" />
     <Compile Include="Tests\AviationWeatherMetarServiceTests.cs" />
+    <Compile Include="Tests\HybridMetarServiceTests.cs" />
+    <Compile Include="Tests\VatsimMetarServiceTests.cs" />
   </ItemGroup>
 </Project>
