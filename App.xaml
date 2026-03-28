@@ -14,6 +14,7 @@
             <!-- Converters -->
             <helpers:StringToBoolConverter x:Key="StringToBoolConverter"/>
             <helpers:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <helpers:DateTimeToStringConverter x:Key="DateTimeToStringConverter"/>
         </ResourceDictionary>
     </Application.Resources>

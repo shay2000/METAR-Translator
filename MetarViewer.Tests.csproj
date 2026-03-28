@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -14,10 +15,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MetarViewer\MetarViewer.csproj" />
+    <Compile Include="AirportLookupService.cs" Link="Source\AirportLookupService.cs" />
+    <Compile Include="MetarData.cs" Link="Source\MetarData.cs" />
+    <Compile Include="MetarDecoder.cs" Link="Source\MetarDecoder.cs" />
+    <Compile Include="MetarDecoderTests.cs" />
+    <Compile Include="Tests\AirportLookupServiceTests.cs" />
   </ItemGroup>
 </Project>

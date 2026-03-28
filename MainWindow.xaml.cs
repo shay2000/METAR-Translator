@@ -27,7 +27,7 @@ public sealed partial class MainWindow : Window
     {
         if (e.Key == Windows.System.VirtualKey.Enter)
         {
-            await ViewModel.FetchMetarAsync();
+            await ViewModel.FetchMetarCommand.ExecuteAsync(null);
         }
     }
 }

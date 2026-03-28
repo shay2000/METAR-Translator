@@ -3,10 +3,10 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml;
+using MetarViewer.Helpers;
 using MetarViewer.Models;
 using MetarViewer.Services;
-using MetarViewer.Helpers;
-using Microsoft.UI.Xaml;
 
 namespace MetarViewer.ViewModels;
 
@@ -51,10 +51,37 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ElementTheme _currentTheme = ElementTheme.Default;
 
+    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility CurrentMetarVisibility => CurrentMetar is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public string ObservationTimeText =>
+        CurrentMetar is { ObservationTime: var time } && time != default
+            ? $"{time:dd MMM yyyy HH:mm} UTC"
+            : string.Empty;
+
     public MainViewModel(IMetarService metarService, IAirportLookupService airportLookupService)
     {
         _metarService = metarService;
         _airportLookupService = airportLookupService;
+    }
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(LoadingVisibility));
+    }
+
+    partial void OnErrorMessageChanged(string? value)
+    {
+        OnPropertyChanged(nameof(HasError));
+    }
+
+    partial void OnCurrentMetarChanged(MetarData? value)
+    {
+        OnPropertyChanged(nameof(CurrentMetarVisibility));
+        OnPropertyChanged(nameof(ObservationTimeText));
     }
 
     [RelayCommand]

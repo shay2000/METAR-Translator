@@ -17,6 +17,26 @@ A modern Windows 11 desktop application for viewing aviation weather reports (ME
 - ✈️ **Flight Categories**: Clear visual indication of VFR, MVFR, IFR, and LIFR conditions
 - 📱 **Responsive Design**: Adaptive layout that works well on different screen sizes
 
+## Download
+
+### Easiest Option
+
+If the repository has a packaged Windows release attached, download the self-contained ZIP package, extract it, and run `MetarViewer.exe`.
+
+**Important**: do **not** download only `MetarViewer.exe` by itself. This WinUI 3 app needs the supporting files from the published folder alongside the `.exe`.
+
+### If No Packaged ZIP Is Available
+
+Build a self-contained Windows package locally:
+
+```powershell
+dotnet publish .\MetarViewer.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishDir=.\publish\win-x64-self-contained\
+```
+
+Then run:
+
+`publish\win-x64-self-contained\MetarViewer.exe`
+
 ## Screenshots
 
 The app features:
@@ -77,7 +97,7 @@ The app uses the **AVWX REST API** (https://avwx.rest) to fetch METAR data.
 **Production use** (recommended):
 1. Sign up for a free account at https://avwx.rest
 2. Get your API token from the dashboard
-3. Open `MetarViewer/Services/AvwxMetarService.cs`
+3. Open `AvwxMetarService.cs`
 4. Uncomment and update line 18:
    ```csharp
    _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer YOUR_API_TOKEN_HERE");
@@ -85,10 +105,10 @@ The app uses the **AVWX REST API** (https://avwx.rest) to fetch METAR data.
 
 ### Adding More Airports
 
-The app includes a database of 25 major airports in `MetarViewer/Data/airports.json`.
+The app includes a database of major airports in `airports.json`, and falls back to AirportsAPI for network lookups when a local match is not found.
 
 To add more airports:
-1. Open `MetarViewer/Data/airports.json`
+1. Open `airports.json`
 2. Add entries in this format:
    ```json
    {
@@ -152,7 +172,7 @@ The solution includes unit tests for the METAR decoding logic.
 
 Or from command line:
 ```bash
-dotnet test MetarViewer.Tests/MetarViewer.Tests.csproj
+dotnet test .\MetarViewer.Tests.csproj
 ```
 
 Tests cover:
@@ -168,29 +188,28 @@ Tests cover:
 
 ### Debug Build
 
-Located in: `MetarViewer/bin/x64/Debug/net8.0-windows10.0.19041.0/win-x64/`
+Located in: `bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\`
 
 ### Release Build
 
 1. Change configuration to **Release**
 2. Select platform: **x64** (or x86/ARM64)
 3. Build → Rebuild Solution
-4. Output in: `MetarViewer/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/`
+4. Output in: `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\`
 
 ### Creating a Package
 
-For distribution:
-1. Right-click MetarViewer project
-2. Select "Publish"
-3. Choose "Folder" publish target
-4. Configure settings and publish
+For distribution, publish a self-contained Windows build and share the whole published folder or a ZIP of that folder:
 
-**Files to distribute**:
-- `MetarViewer.exe`
-- `MetarViewer.dll`
-- All dependency DLLs
-- `Data/airports.json`
-- Windows App SDK runtime (may require separate installer)
+```powershell
+dotnet publish .\MetarViewer.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishDir=.\publish\win-x64-self-contained\
+```
+
+Share this folder:
+
+`publish\win-x64-self-contained\`
+
+Do **not** share only `MetarViewer.exe`. The app also needs its supporting files, including `Data\airports.json`.
 
 ## Troubleshooting
 

@@ -27,10 +27,17 @@ public partial class App : Application
     {
         // HttpClient for METAR service
         services.AddHttpClient<IMetarService, AvwxMetarService>();
+        services.AddHttpClient(AirportLookupService.AirportsApiHttpClientName, client =>
+        {
+            client.BaseAddress = AirportLookupService.AirportsApiBaseUri;
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
+        });
 
         // Airport lookup service
         var dataPath = Path.Combine(AppContext.BaseDirectory, "Data", "airports.json");
-        services.AddSingleton<IAirportLookupService>(sp => new AirportLookupService(dataPath));
+        services.AddSingleton<IAirportLookupService>(sp =>
+            new AirportLookupService(dataPath, sp.GetRequiredService<IHttpClientFactory>()));
 
         // ViewModels
         services.AddTransient<MainViewModel>();

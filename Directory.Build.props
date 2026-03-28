@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'MetarViewer.Tests'">
+    <BaseIntermediateOutputPath>obj\MetarViewer.Tests\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>obj\MetarViewer.Tests\</MSBuildProjectExtensionsPath>
+    <BaseOutputPath>bin\MetarViewer.Tests\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

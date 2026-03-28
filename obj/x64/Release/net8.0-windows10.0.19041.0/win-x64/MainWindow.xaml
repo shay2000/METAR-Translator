@@ -1,0 +1,253 @@
+﻿<Window x:ConnectionId='1'
+    x:Class="MetarViewer.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="METAR Viewer">
+
+    <Grid x:ConnectionId='2'
+        Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+                                                                     >
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title Bar Area with Theme Toggle -->
+        <Border
+            Grid.Row="0"
+            Padding="20,16"
+            Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    Grid.Column="0"
+                    Text="METAR Viewer"
+                    Style="{StaticResource TitleTextBlockStyle}"
+                    VerticalAlignment="Center"/>
+
+                <Button x:ConnectionId='19'
+                    Grid.Column="1"
+                                                                   
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ToolTipService.ToolTip="Toggle theme">
+                    <FontIcon Glyph="&#xE771;" FontSize="16"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <Border Padding="20">
+                <StackPanel Spacing="20" MaxWidth="800">
+
+                    <!-- Search Section -->
+                    <Border
+                        CornerRadius="8"
+                        Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                        Padding="20"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                        <Grid RowSpacing="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Text="Enter Airport"
+                                Style="{StaticResource SubtitleTextBlockStyle}"/>
+
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:ConnectionId='16'
+                                    Grid.Column="0"
+                                    x:Name="SearchTextBox"
+                                                                                                                          
+                                    PlaceholderText="ICAO, IATA, or airport name (e.g., EGLL, LHR, London Heathrow)"
+                                    Margin="0,0,12,0"
+                                                                   />
+
+                                <Button x:ConnectionId='17'
+                                    Grid.Column="1"
+                                                                                  
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    MinWidth="120">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ProgressRing x:ConnectionId='18'
+                                                                                                
+                                            Width="16"
+                                            Height="16"
+                                                                                                          />
+                                        <TextBlock Text="Get METAR"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Error Message -->
+                    <InfoBar x:ConnectionId='3'
+                        Severity="Error"
+                                                                         
+                                                                              
+                        IsClosable="True"/>
+
+                    <!-- METAR Display Section -->
+                    <StackPanel x:ConnectionId='4'
+                        Spacing="20"
+                                                                                           >
+
+                        <!-- Quick Summary Card -->
+                        <Border
+                            CornerRadius="8"
+                            Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                            Padding="20"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <Grid RowSpacing="16">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Header -->
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock x:ConnectionId='14'
+                                                                                                         
+                                            Style="{StaticResource TitleTextBlockStyle}"/>
+                                        <TextBlock x:ConnectionId='15'
+                                                                                                      
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <Border
+                                        Grid.Column="1"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                        CornerRadius="4"
+                                        Padding="12,6"
+                                        VerticalAlignment="Top">
+                                        <TextBlock x:ConnectionId='13'
+                                                                                                              
+                                            FontWeight="SemiBold"/>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Quick Stats -->
+                                <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0">
+                                        <TextBlock Text="Wind" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                        <TextBlock x:ConnectionId='12'                                                    TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="1">
+                                        <TextBlock Text="Visibility" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                        <TextBlock x:ConnectionId='11'                                                          TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="0">
+                                        <TextBlock Text="Temperature" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                        <TextBlock x:ConnectionId='10'                                                           TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="1">
+                                        <TextBlock Text="Altimeter" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                        <TextBlock x:ConnectionId='9'                                                         TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                                        <TextBlock Text="Clouds" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                        <TextBlock x:ConnectionId='8'                                                      TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <!-- Raw METAR -->
+                        <Border
+                            CornerRadius="8"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                            Padding="20"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <StackPanel Spacing="12">
+                                <TextBlock
+                                    Text="Raw METAR"
+                                    Style="{StaticResource SubtitleTextBlockStyle}"/>
+                                <TextBox x:ConnectionId='7'
+                                                                                                
+                                    IsReadOnly="True"
+                                    TextWrapping="Wrap"
+                                    FontFamily="Consolas"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderThickness="0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Decoded Information -->
+                        <Border
+                            CornerRadius="8"
+                            Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                            Padding="20"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <StackPanel Spacing="16">
+                                <TextBlock
+                                    Text="Decoded Information"
+                                    Style="{StaticResource SubtitleTextBlockStyle}"/>
+
+                                <StackPanel Spacing="12">
+                                    <StackPanel>
+                                        <TextBlock Text="Flight Category" FontWeight="SemiBold"/>
+                                        <TextBlock x:ConnectionId='6'
+                                                                                                            
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <StackPanel>
+                                        <TextBlock Text="Weather" FontWeight="SemiBold"/>
+                                        <TextBlock x:ConnectionId='5'
+                                                                                                 
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+    </Grid>
+</Window>
+
