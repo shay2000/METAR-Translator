@@ -32,6 +32,10 @@ Important:
 - Keep all files from the extracted folder together
 - The app is intended for Windows 11
 
+## Alternative Download
+
+You can also download the Zip file from flightsim.to from this link: https://flightsim.to/addon/106602/metar-translator
+
 ## How To Use
 
 1. Open the app.
