@@ -2,8 +2,14 @@ using MetarViewer.Models;
 
 namespace MetarViewer.Helpers;
 
+/// <summary>
+/// Provides methods to decode raw METAR data into human-readable strings.
+/// </summary>
 public static class MetarDecoder
 {
+    /// <summary>
+    /// Decodes wind information into a human-readable string.
+    /// </summary>
     public static string DecodeWind(MetarData metar)
     {
         if (metar.WindSpeed == null)
@@ -30,6 +36,9 @@ public static class MetarDecoder
         return $"Wind from {direction} at {speed}";
     }
 
+    /// <summary>
+    /// Decodes visibility into a human-readable string.
+    /// </summary>
     public static string DecodeVisibility(MetarData metar)
     {
         if (metar.IsCavok)
@@ -46,6 +55,9 @@ public static class MetarDecoder
         return $"Visibility {metar.Visibility} {unit}";
     }
 
+    /// <summary>
+    /// Decodes cloud layers into a human-readable string.
+    /// </summary>
     public static string DecodeClouds(MetarData metar)
     {
         if (metar.IsCavok)
@@ -71,6 +83,9 @@ public static class MetarDecoder
         return string.Join(", ", cloudDescriptions);
     }
 
+    /// <summary>
+    /// Decodes temperature and dew point into a human-readable string.
+    /// </summary>
     public static string DecodeTemperature(MetarData metar)
     {
         var parts = new List<string>();
@@ -93,6 +108,9 @@ public static class MetarDecoder
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// Decodes altimeter setting into a human-readable string, showing both hPa and inHg.
+    /// </summary>
     public static string DecodeAltimeter(MetarData metar)
     {
         if (!metar.Altimeter.HasValue)
@@ -100,6 +118,7 @@ public static class MetarDecoder
             return "Altimeter information not available";
         }
 
+        // If unit is hPa or value looks like hPa (>= 100)
         if (string.Equals(metar.AltimeterUnit, "hPa", StringComparison.OrdinalIgnoreCase) ||
             (string.IsNullOrWhiteSpace(metar.AltimeterUnit) && metar.Altimeter >= 100))
         {
@@ -108,10 +127,14 @@ public static class MetarDecoder
             return $"QNH {metar.Altimeter.Value.ToString(hpaFormat)} hPa ({inHg:F2} inHg)";
         }
 
+        // Otherwise assume inHg
         var hpa = metar.Altimeter * 33.8639m;
         return $"QNH {metar.Altimeter:F2} inHg ({hpa:F0} hPa)";
     }
 
+    /// <summary>
+    /// Decodes weather phenomena codes into human-readable strings.
+    /// </summary>
     public static string DecodeWeather(MetarData metar)
     {
         if (metar.IsCavok)
@@ -131,6 +154,9 @@ public static class MetarDecoder
         return string.Join(", ", weatherDescriptions);
     }
 
+    /// <summary>
+    /// Gets a full description for a flight category abbreviation.
+    /// </summary>
     public static string GetFlightCategoryDescription(string? category)
     {
         return category?.ToUpperInvariant() switch
@@ -143,6 +169,9 @@ public static class MetarDecoder
         };
     }
 
+    /// <summary>
+    /// Decodes a cloud coverage abbreviation into a full string.
+    /// </summary>
     private static string DecodeCoverage(string coverage)
     {
         return coverage.ToUpperInvariant() switch
@@ -158,9 +187,12 @@ public static class MetarDecoder
         };
     }
 
+    /// <summary>
+    /// Decodes a weather phenomenon code into a full string.
+    /// </summary>
     private static string DecodeWeatherCode(string code)
     {
-        // Simplified weather code decoder
+        // Simplified weather code decoder for common codes
         var decoded = code switch
         {
             "RA" => "Rain",

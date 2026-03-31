@@ -5,12 +5,17 @@ using MetarViewer.Models;
 
 namespace MetarViewer.Services;
 
+/// <summary>
+/// Service for retrieving METAR data from aviationweather.gov API.
+/// </summary>
 public class AviationWeatherMetarService : IMetarService
 {
     internal const string AviationWeatherHttpClientName = "AviationWeather";
     public static readonly Uri AviationWeatherBaseUri = new("https://aviationweather.gov/api/data/");
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    
+    // Common METAR codes for weather phenomena
     private static readonly string[] WeatherIndicators =
     [
         "RA", "SN", "DZ", "FG", "BR", "HZ", "TS", "FZ", "SH",
@@ -22,11 +27,21 @@ public class AviationWeatherMetarService : IMetarService
     private readonly Dictionary<string, CachedMetar> _cache = new();
     private readonly TimeSpan _cacheExpiration = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AviationWeatherMetarService"/> class.
+    /// </summary>
+    /// <param name="httpClient">The HTTP client to use for API requests.</param>
     public AviationWeatherMetarService(HttpClient httpClient)
     {
         _httpClient = httpClient;
     }
 
+    /// <summary>
+    /// Asynchronously retrieves METAR data for a specific station ID from aviationweather.gov.
+    /// </summary>
+    /// <param name="stationId">The 4-character ICAO code for the station (e.g., KLAX, EGLL).</param>
+    /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
+    /// <returns>A MetarData object if found, otherwise null.</returns>
     public async Task<MetarData?> GetMetarAsync(string stationId, CancellationToken cancellationToken = default)
     {
         var normalizedStationId = NormalizeStationId(stationId);
@@ -35,7 +50,7 @@ public class AviationWeatherMetarService : IMetarService
             return null;
         }
 
-        // Check cache first
+        // Check local cache first to avoid over-requesting
         if (_cache.TryGetValue(normalizedStationId, out var cached))
         {
             if (DateTime.UtcNow - cached.Timestamp < _cacheExpiration)
@@ -48,6 +63,7 @@ public class AviationWeatherMetarService : IMetarService
 
         try
         {
+            // Fetch METAR data in JSON format from aviationweather.gov
             using var response = await _httpClient.GetAsync(
                 $"metar?ids={Uri.EscapeDataString(normalizedStationId)}&format=json",
                 cancellationToken);
@@ -76,7 +92,7 @@ public class AviationWeatherMetarService : IMetarService
 
             var metarData = MapToMetarData(report, normalizedStationId);
 
-            // Cache the result
+            // Cache the result for future requests
             _cache[normalizedStationId] = new CachedMetar
             {
                 Data = metarData,
@@ -99,6 +115,9 @@ public class AviationWeatherMetarService : IMetarService
         }
     }
 
+    /// <summary>
+    /// Maps the API response model to our internal MetarData model.
+    /// </summary>
     private static MetarData MapToMetarData(AviationWeatherMetarResponse response, string fallbackStationId)
     {
         var metarData = new MetarData
@@ -124,6 +143,7 @@ public class AviationWeatherMetarService : IMetarService
             metarData.ObservationTime = observationTime;
         }
 
+        // Map cloud layers if present
         if (response.Clouds != null)
         {
             foreach (var cloud in response.Clouds)
@@ -137,6 +157,7 @@ public class AviationWeatherMetarService : IMetarService
             }
         }
 
+        // Extract weather phenomena from various fields
         foreach (var weatherCode in ExtractWeatherPhenomena(response))
         {
             metarData.WeatherPhenomena.Add(weatherCode);
@@ -160,6 +181,9 @@ public class AviationWeatherMetarService : IMetarService
         return (int)Math.Round(value.Value, MidpointRounding.AwayFromZero);
     }
 
+    /// <summary>
+    /// Attempts to parse the observation time from multiple possible response fields.
+    /// </summary>
     private static bool TryParseObservationTime(AviationWeatherMetarResponse response, out DateTime observationTime)
     {
         if (DateTimeOffset.TryParse(
@@ -182,6 +206,9 @@ public class AviationWeatherMetarService : IMetarService
         return false;
     }
 
+    /// <summary>
+    /// Parses visibility strings which might be decimal, fractional, or combinations (e.g., "1 1/2").
+    /// </summary>
     private static decimal? ParseVisibility(string? visibility)
     {
         if (string.IsNullOrWhiteSpace(visibility))
@@ -191,11 +218,13 @@ public class AviationWeatherMetarService : IMetarService
 
         var normalizedVisibility = visibility.Trim().TrimEnd('+');
 
+        // Simple decimal parse
         if (decimal.TryParse(normalizedVisibility, NumberStyles.Number, CultureInfo.InvariantCulture, out var wholeValue))
         {
             return wholeValue;
         }
 
+        // Mixed fraction parse (e.g., "1 1/2")
         var parts = normalizedVisibility.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 2 &&
             decimal.TryParse(parts[0], NumberStyles.Number, CultureInfo.InvariantCulture, out var wholeMiles))
@@ -207,6 +236,7 @@ public class AviationWeatherMetarService : IMetarService
             }
         }
 
+        // Single fraction parse (e.g., "1/2")
         return ParseFraction(normalizedVisibility);
     }
 
@@ -228,6 +258,9 @@ public class AviationWeatherMetarService : IMetarService
         return numerator / denominator;
     }
 
+    /// <summary>
+    /// Extracts weather phenomena codes (like RA, SN, FG) from the weather string and raw METAR.
+    /// </summary>
     private static IEnumerable<string> ExtractWeatherPhenomena(AviationWeatherMetarResponse response)
     {
         var source = string.IsNullOrWhiteSpace(response.WeatherString)
@@ -247,28 +280,37 @@ public class AviationWeatherMetarService : IMetarService
             .ToList();
     }
 
+    /// <summary>
+    /// Determines if a string token from a METAR represents a weather phenomenon.
+    /// </summary>
     private static bool LooksLikeWeatherToken(string token)
     {
+        // Skip common non-weather tokens
         if (token.Length < 2 ||
             token is "METAR" or "SPECI" or "AUTO" or "COR" or "NOSIG")
         {
             return false;
         }
 
-        var candidate = token.TrimStart('+', '-');
-        if (candidate.StartsWith("VC", StringComparison.Ordinal))
+        var candidate = token.TrimStart('+', '-'); // Remove intensity indicators
+        if (candidate.StartsWith("VC", StringComparison.Ordinal)) // Remove vicinity indicator
         {
             candidate = candidate[2..];
         }
 
+        // Basic validation of length and character type
         if (candidate.Length < 2 || candidate.Length > 8 || candidate.Any(character => !char.IsLetter(character)))
         {
             return false;
         }
 
+        // Check against known weather indicators
         return WeatherIndicators.Any(indicator => candidate.Contains(indicator, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Internal representation of a cached METAR entry.
+    /// </summary>
     private class CachedMetar
     {
         public MetarData Data { get; set; } = null!;

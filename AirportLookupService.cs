@@ -7,10 +7,19 @@ using System.Text.RegularExpressions;
 
 namespace MetarViewer.Services;
 
+/// <summary>
+/// Represents a resolved airport with its station ID, display name, and IATA code.
+/// </summary>
 public sealed record ResolvedAirport(string StationId, string? DisplayName, string? IataCode);
 
+/// <summary>
+/// Represents a suggestion for an airport search.
+/// </summary>
 public sealed record AirportSuggestion(string StationId, string DisplayName, string? IataCode)
 {
+    /// <summary>
+    /// Gets the text to display in a list (e.g., "KLAX - Los Angeles Intl").
+    /// </summary>
     public string DisplayText =>
         string.IsNullOrWhiteSpace(DisplayName)
             ? StationId
@@ -19,13 +28,31 @@ public sealed record AirportSuggestion(string StationId, string DisplayName, str
     public override string ToString() => DisplayText;
 }
 
+/// <summary>
+/// Interface for a service that looks up airports by various identifiers or names.
+/// </summary>
 public interface IAirportLookupService
 {
+    /// <summary>
+    /// Resolves a search string to a single 4-character ICAO station ID.
+    /// </summary>
     Task<string?> ResolveAirportAsync(string input);
+
+    /// <summary>
+    /// Resolves a search string into detailed airport information.
+    /// </summary>
     Task<ResolvedAirport?> ResolveAirportDetailsAsync(string input, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Provides a list of airport suggestions based on a partial search string.
+    /// </summary>
     Task<IReadOnlyList<AirportSuggestion>> GetSuggestionsAsync(string input, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Implementation of <see cref="IAirportLookupService"/> using airportsapi.com.
+/// Features caching, fuzzy matching, and station ID heuristics.
+/// </summary>
 public class AirportLookupService : IAirportLookupService
 {
     internal const string AirportsApiHttpClientName = "AirportsApi";
@@ -34,6 +61,8 @@ public class AirportLookupService : IAirportLookupService
     private static readonly TimeSpan LookupCacheLifetime = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan SuggestionCacheLifetime = TimeSpan.FromMinutes(2);
     private static readonly Regex NonAlphaNumericRegex = new("[^A-Z0-9]+", RegexOptions.Compiled);
+    
+    // Words to ignore in airport names when calculating fuzzy match scores
     private static readonly HashSet<string> IgnoredNameWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "AIRPORT", "AIRFIELD", "AERODROME", "INTERNATIONAL", "INTL", "REGIONAL",
@@ -44,6 +73,9 @@ public class AirportLookupService : IAirportLookupService
     private readonly ConcurrentDictionary<string, AirportSuggestionCacheEntry> _suggestionCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly IHttpClientFactory _httpClientFactory;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AirportLookupService"/> class.
+    /// </summary>
     public AirportLookupService(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
@@ -371,6 +403,10 @@ public class AirportLookupService : IAirportLookupService
             || string.Equals(attributes.LocalCode, normalizedInput, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Calculates a match score for an airport based on how well it matches the user's input.
+    /// Higher scores are better.
+    /// </summary>
     private static int ScoreAirportMatch(
         AirportsApiAirportAttributes? attributes,
         string trimmedInput,
@@ -483,6 +519,9 @@ public class AirportLookupService : IAirportLookupService
         return NonAlphaNumericRegex.Replace(value.ToUpperInvariant(), string.Empty);
     }
 
+    /// <summary>
+    /// Calculates the edit distance between two strings.
+    /// </summary>
     private static int CalculateLevenshteinDistance(string source, string target)
     {
         if (source.Length == 0)

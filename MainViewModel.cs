@@ -10,27 +10,47 @@ using MetarViewer.Services;
 
 namespace MetarViewer.ViewModels;
 
+/// <summary>
+/// The main view model for the application, responsible for search logic, 
+/// data fetching, and decoding state management.
+/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private readonly IMetarService _metarService;
     private readonly IAirportLookupService _airportLookupService;
     private AirportSuggestion? _selectedAirportSuggestion;
 
+    /// <summary>
+    /// The text entered in the search box.
+    /// </summary>
     [ObservableProperty]
     private string _searchText = string.Empty;
 
+    /// <summary>
+    /// Current list of airport search suggestions.
+    /// </summary>
     [ObservableProperty]
     private IReadOnlyList<AirportSuggestion> _airportSuggestions = Array.Empty<AirportSuggestion>();
 
+    /// <summary>
+    /// Indicates if a data fetch operation is in progress.
+    /// </summary>
     [ObservableProperty]
     private bool _isLoading;
 
+    /// <summary>
+    /// Holds any error message to display to the user.
+    /// </summary>
     [ObservableProperty]
     private string? _errorMessage;
 
+    /// <summary>
+    /// The currently loaded METAR data.
+    /// </summary>
     [ObservableProperty]
     private MetarData? _currentMetar;
 
+    // Decoded property fields for UI binding
     [ObservableProperty]
     private string _decodedWind = string.Empty;
 
@@ -52,22 +72,40 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _flightCategoryDescription = string.Empty;
 
+    /// <summary>
+    /// The current application theme (Light, Dark, or Default).
+    /// </summary>
     [ObservableProperty]
     private ElementTheme _currentTheme = ElementTheme.Default;
 
+    /// <summary>
+    /// Gets whether there is currently an error to display.
+    /// </summary>
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
+    /// <summary>
+    /// UI visibility for the loading spinner.
+    /// </summary>
     public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>
+    /// UI visibility for the main METAR display.
+    /// </summary>
     public Visibility CurrentMetarVisibility => CurrentMetar is null ? Visibility.Collapsed : Visibility.Visible;
 
+    /// <summary>
+    /// Glyph for the theme toggle button based on current theme.
+    /// </summary>
     public string ThemeToggleGlyph => CurrentTheme switch
     {
-        ElementTheme.Dark => "\u263E",
-        ElementTheme.Light => "\u2600",
-        _ => "\u25D0"
+        ElementTheme.Dark => "\u263E", // Moon
+        ElementTheme.Light => "\u2600", // Sun
+        _ => "\u25D0" // Half circle
     };
 
+    /// <summary>
+    /// Tooltip text for the theme toggle button.
+    /// </summary>
     public string ThemeToggleToolTip => CurrentTheme switch
     {
         ElementTheme.Dark => "Dark mode enabled. Click to switch to light mode",
@@ -75,11 +113,17 @@ public partial class MainViewModel : ObservableObject
         _ => "Theme follows the app default. Click to switch to dark mode"
     };
 
+    /// <summary>
+    /// Formatted observation time string.
+    /// </summary>
     public string ObservationTimeText =>
         CurrentMetar is { ObservationTime: var time } && time != default
             ? $"{time:dd MMM yyyy HH:mm} UTC"
             : string.Empty;
 
+    /// <summary>
+    /// Header text for the station (e.g., "KLAX - Los Angeles Intl").
+    /// </summary>
     public string StationHeaderText =>
         CurrentMetar is null
             ? string.Empty
@@ -87,12 +131,18 @@ public partial class MainViewModel : ObservableObject
                 ? CurrentMetar.StationId
                 : $"{CurrentMetar.StationId} - {CurrentMetar.StationName}";
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class.
+    /// </summary>
     public MainViewModel(IMetarService metarService, IAirportLookupService airportLookupService)
     {
         _metarService = metarService;
         _airportLookupService = airportLookupService;
     }
 
+    /// <summary>
+    /// Clears selected suggestion if user modifies the search text manually.
+    /// </summary>
     partial void OnSearchTextChanged(string value)
     {
         if (_selectedAirportSuggestion != null &&
@@ -102,29 +152,24 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    partial void OnIsLoadingChanged(bool value)
-    {
-        OnPropertyChanged(nameof(LoadingVisibility));
-    }
-
-    partial void OnErrorMessageChanged(string? value)
-    {
-        OnPropertyChanged(nameof(HasError));
-    }
-
+    // Property update notifications for compound UI properties
+    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(LoadingVisibility));
+    partial void OnErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasError));
     partial void OnCurrentMetarChanged(MetarData? value)
     {
         OnPropertyChanged(nameof(CurrentMetarVisibility));
         OnPropertyChanged(nameof(ObservationTimeText));
         OnPropertyChanged(nameof(StationHeaderText));
     }
-
     partial void OnCurrentThemeChanged(ElementTheme value)
     {
         OnPropertyChanged(nameof(ThemeToggleGlyph));
         OnPropertyChanged(nameof(ThemeToggleToolTip));
     }
 
+    /// <summary>
+    /// Asynchronously fetches and decodes the METAR for the current search text.
+    /// </summary>
     [RelayCommand]
     private async Task FetchMetarAsync()
     {
@@ -141,6 +186,7 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            // Resolve input to an airport
             var resolvedAirport = GetSelectedAirportResolution()
                 ?? await _airportLookupService.ResolveAirportDetailsAsync(SearchText);
 
@@ -150,6 +196,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
+            // Fetch the METAR data
             var metar = await _metarService.GetMetarAsync(resolvedAirport.StationId);
 
             if (metar == null)
@@ -158,6 +205,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
+            // Mix in the resolved airport name if the service didn't provide one
             if (!string.IsNullOrWhiteSpace(resolvedAirport.DisplayName))
             {
                 metar.StationName = resolvedAirport.DisplayName;
@@ -166,6 +214,7 @@ public partial class MainViewModel : ObservableObject
             CurrentMetar = metar;
             DecodeMetar(metar);
 
+            // Remember for next launch
             SaveLastStation(resolvedAirport.StationId);
         }
         catch (Exception ex)
@@ -178,6 +227,9 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Toggles between light and dark themes.
+    /// </summary>
     [RelayCommand]
     private void ToggleTheme()
     {
@@ -186,6 +238,9 @@ public partial class MainViewModel : ObservableObject
             : ElementTheme.Dark;
     }
 
+    /// <summary>
+    /// Loads the last successfully searched station on app startup.
+    /// </summary>
     public async Task LoadLastStationAsync()
     {
         var lastStation = LoadLastStation();
@@ -196,6 +251,9 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Updates the list of suggestions as the user types.
+    /// </summary>
     public async Task UpdateAirportSuggestionsAsync(string input, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(input) || input.Trim().Length < 2)
@@ -210,6 +268,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // Throttled search task
         }
         catch
         {
@@ -217,6 +276,9 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Selects a suggestion from the search box list.
+    /// </summary>
     public void SelectAirportSuggestion(AirportSuggestion suggestion)
     {
         _selectedAirportSuggestion = suggestion;
@@ -224,11 +286,17 @@ public partial class MainViewModel : ObservableObject
         AirportSuggestions = Array.Empty<AirportSuggestion>();
     }
 
+    /// <summary>
+    /// Clears the current list of suggestions.
+    /// </summary>
     public void ClearAirportSuggestions()
     {
         AirportSuggestions = Array.Empty<AirportSuggestion>();
     }
 
+    /// <summary>
+    /// Helper to run the METAR decoder on raw data and populate view model fields.
+    /// </summary>
     private void DecodeMetar(MetarData metar)
     {
         DecodedWind = MetarDecoder.DecodeWind(metar);
@@ -249,7 +317,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            // Ignore settings errors
+            // Settings persistence is best-effort
         }
     }
 
@@ -266,6 +334,9 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Converts a selected suggestion into a resolution object for further lookups.
+    /// </summary>
     private ResolvedAirport? GetSelectedAirportResolution()
     {
         return _selectedAirportSuggestion == null
