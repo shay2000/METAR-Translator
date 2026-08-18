@@ -1,3 +1,4 @@
+using MetarViewer.Airports;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MetarViewer.Services;
@@ -29,7 +30,7 @@ public static class ServiceCollectionExtensions
 
         services.AddMetarApiClient(VatsimMetarService.VatsimMetarHttpClientName, VatsimMetarService.VatsimMetarBaseUri, options);
         services.AddMetarApiClient(AviationWeatherMetarService.AviationWeatherHttpClientName, AviationWeatherMetarService.AviationWeatherBaseUri, options);
-        services.AddMetarApiClient(AirportLookupService.AirportsApiHttpClientName, AirportLookupService.AirportsApiBaseUri, options);
+        services.AddMetarApiClient(AirportsApiClient.HttpClientName, AirportsApiClient.BaseUri, options);
 
         // VATSIM is tried first because it is the source flight simulation uses; the
         // real-world observation is the fallback when a station is missing there.
