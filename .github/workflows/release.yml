@@ -28,25 +28,17 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore dependencies
-        run: dotnet restore .\MetarViewer.sln
+        run: dotnet restore MetarViewer.sln
 
       - name: Run tests
-        run: dotnet test .\tests\MetarViewer.Core.Tests\MetarViewer.Core.Tests.csproj --configuration Release --no-restore
+        run: dotnet test tests/MetarViewer.Core.Tests/MetarViewer.Core.Tests.csproj --configuration Release --no-restore
 
       - name: Publish Windows package
-        run: >
-          dotnet publish .\src\MetarViewer.App\MetarViewer.App.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:Platform=x64
-          -p:WindowsPackageType=None
-          -p:WindowsAppSDKSelfContained=true
-          -p:PublishDir=.\publish\MetarViewer-win11-x64-self-contained\
+        run: dotnet publish src/MetarViewer.App/MetarViewer.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishDir=./publish/MetarViewer-win11-x64-self-contained
 
       - name: Create release ZIP
         shell: pwsh
-        run: Compress-Archive -Path .\publish\MetarViewer-win11-x64-self-contained\* -DestinationPath .\publish\MetarViewer-win11-x64-self-contained.zip -Force
+        run: Compress-Archive -Path ./publish/MetarViewer-win11-x64-self-contained/* -DestinationPath ./publish/MetarViewer-win11-x64-self-contained.zip -Force
 
       - name: Create or update GitHub release
         shell: pwsh
@@ -65,7 +57,7 @@ jobs:
           }
 
           $repo = "${{ github.repository }}"
-          $assetPath = Join-Path $PWD "publish\MetarViewer-win11-x64-self-contained.zip"
+          $assetPath = Join-Path $PWD "publish/MetarViewer-win11-x64-self-contained.zip"
 
           gh release view $tag --repo $repo *> $null
 
