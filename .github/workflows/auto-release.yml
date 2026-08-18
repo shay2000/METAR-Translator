@@ -1,0 +1,47 @@
+name: Auto Release on Main Push
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  auto-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tags
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate next version
+        id: generate_tag
+        run: |
+          LATEST=${{ steps.get_tag.outputs.latest_tag }}
+          # Remove 'v' prefix for version math
+          VERSION=${LATEST#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Increment patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          echo "Current: $LATEST => Next: $NEW_VERSION"
+          echo "tag=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.generate_tag.outputs.tag }}
+          git push origin ${{ steps.generate_tag.outputs.tag }}
+          echo "Created tag: ${{ steps.generate_tag.outputs.tag }}"
