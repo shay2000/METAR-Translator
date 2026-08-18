@@ -1,110 +1,66 @@
-using System.IO;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Styling;
+using Microsoft.Extensions.DependencyInjection;
 using MetarViewer.Services;
 using MetarViewer.ViewModels;
 
 namespace MetarViewer.Views;
 
-/// <summary>
-/// The main application window, responsible for UI interaction and event handling.
-/// </summary>
-public sealed partial class MainWindow : Window
+public partial class MainWindow : Window
 {
     private CancellationTokenSource? _suggestionCancellationTokenSource;
-
-    /// <summary>
-    /// Gets the view model instance for this window.
-    /// </summary>
     public MainViewModel ViewModel { get; }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MainWindow"/> class.
-    /// </summary>
-    /// <param name="viewModel">The view model to use for data binding.</param>
+    // Avalonia's runtime XAML loader requires a public parameterless constructor.
+    public MainWindow() : this(CreateViewModel())
+    {
+    }
+
     public MainWindow(MainViewModel viewModel)
     {
         ViewModel = viewModel;
+        DataContext = viewModel;
         InitializeComponent();
-
-        // Apply Mica effect for a modern Windows 11 appearance
-        SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
-
-        // Set application icon from assets
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
-        if (File.Exists(iconPath))
+        ViewModel.PropertyChanged += (_, args) =>
         {
-            AppWindow.SetIcon(iconPath);
-        }
-
-        // Set initial window size
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(900, 800));
-
-        // Asynchronously load the last station on startup
-        _ = ViewModel.LoadLastStationAsync();
+            if (args.PropertyName == nameof(MainViewModel.IsDarkTheme) && Application.Current is { } app)
+                app.RequestedThemeVariant = ViewModel.IsDarkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+        };
+        Opened += (_, _) => _ = ViewModel.LoadLastStationAsync();
     }
 
-    /// <summary>
-    /// Handles text changes in the search box to provide auto-suggestions.
-    /// </summary>
-    private async void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    private static MainViewModel CreateViewModel()
     {
-        ViewModel.SearchText = sender.Text;
+        var services = new ServiceCollection();
+        services.AddMetarViewerServices();
+        services.AddTransient<MainViewModel>();
+        return services.BuildServiceProvider().GetRequiredService<MainViewModel>();
+    }
 
-        // Only search if the change was due to user input
-        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
-        {
-            sender.IsSuggestionListOpen = false;
-            return;
-        }
-
-        // Cancel previous pending search
+    private async void SearchBox_TextChanged(object? sender, TextChangedEventArgs args)
+    {
         _suggestionCancellationTokenSource?.Cancel();
         _suggestionCancellationTokenSource?.Dispose();
         _suggestionCancellationTokenSource = new CancellationTokenSource();
-
-        try
-        {
-            // Update suggestions with a debounce-like cancellation
-            await ViewModel.UpdateAirportSuggestionsAsync(sender.Text, _suggestionCancellationTokenSource.Token);
-            sender.IsSuggestionListOpen = ViewModel.AirportSuggestions.Count > 0;
-        }
-        catch (OperationCanceledException)
-        {
-            // Suppression is expected for typing fast
-        }
+        await ViewModel.UpdateAirportSuggestionsAsync(ViewModel.SearchText, _suggestionCancellationTokenSource.Token);
     }
 
-    /// <summary>
-    /// Handles the selection of a suggestion from the list.
-    /// </summary>
-    private void SearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    private async void SearchBox_KeyDown(object? sender, KeyEventArgs args)
     {
-        if (args.SelectedItem is AirportSuggestion suggestion)
-        {
-            ViewModel.SelectAirportSuggestion(suggestion);
-            sender.IsSuggestionListOpen = false;
-        }
-    }
-
-    /// <summary>
-    /// Handles the final submission of a query (via Enter or click).
-    /// </summary>
-    private async void SearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
-    {
-        if (args.ChosenSuggestion is AirportSuggestion suggestion)
-        {
-            ViewModel.SelectAirportSuggestion(suggestion);
-        }
-        else
-        {
-            // If no suggestion chosen, use the raw text
-            ViewModel.SearchText = sender.Text;
-            ViewModel.ClearAirportSuggestions();
-        }
-
-        sender.IsSuggestionListOpen = false;
-        // Trigger the fetch command
+        if (args.Key != Key.Enter) return;
+        ViewModel.ClearAirportSuggestions();
         await ViewModel.FetchMetarCommand.ExecuteAsync(null);
+    }
+
+    private void Suggestions_SelectionChanged(object? sender, SelectionChangedEventArgs args)
+    {
+        if (sender is ListBox { SelectedItem: AirportSuggestion suggestion } list)
+        {
+            ViewModel.SelectAirportSuggestion(suggestion);
+            list.SelectedItem = null;
+        }
     }
 }

@@ -1,8 +1,8 @@
 # METAR Viewer
 
-METAR Viewer is a Windows 11 desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format.
+METAR Viewer is a native-feeling macOS desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format. This `Mac-Version` branch contains the cross-platform Avalonia UI and automated Mac packaging.
 
-![Windows 11](https://img.shields.io/badge/Windows-11-blue)
+![macOS](https://img.shields.io/badge/macOS-10.15%2B-black)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -16,21 +16,24 @@ METAR Viewer is a Windows 11 desktop app for searching airports and viewing live
 
 - 🔍 **Flexible Airport Search**: Enter ICAO codes (e.g., EGLL), IATA codes (e.g., LHR), or airport names (e.g., "London Heathrow")
 - 📊 **Dual Display**: View both raw METAR data and human-readable decoded information
-- 🎨 **Liquid Glass UI**: Modern Windows 11 design with Mica backdrop and glassmorphic elements
+- 🍎 **Mac Desktop App**: A responsive interface with native light and dark appearances
 - 🌓 **Theme Toggle**: Switch between light and dark modes with a single click
 - ⚡ **Smart Caching**: Automatic 60-second response caching to minimize API calls
 - 💾 **Session Persistence**: Remembers your last searched airport across app restarts
 - ✈️ **Flight Categories**: Clear visual indication of VFR, MVFR, IFR, and LIFR conditions
 - 📱 **Responsive Design**: Adaptive layout that works well on different screen sizes
 
-## Download
+## Download for Mac
 
-Download the latest packaged build from the [GitHub Releases page](https://github.com/shay2000/METAR-Translator/releases/latest), extract the ZIP, and run `MetarViewer.exe`.
+1. Open the [GitHub Releases page](https://github.com/shay2000/METAR-Translator/releases).
+2. Find the newest release titled **“METAR Viewer for Mac”** (its tag begins with `mac-v`).
+3. Download the `.dmg` that matches your Mac:
+   - **Apple-Silicon** for M1, M2, M3, M4, and newer Apple chips.
+   - **Intel** for older Intel-based Macs.
+4. Open the `.dmg`, then drag **METAR Viewer** into the **Applications** shortcut.
+5. Start METAR Viewer from Applications.
 
-Important:
-- Download the full ZIP release, not just a single `.exe`
-- Keep all files from the extracted folder together
-- The app is intended for Windows 11
+> **First launch:** Release builds are currently unsigned. If macOS blocks the app, Control-click it in Applications, choose **Open**, and confirm **Open**. Only do this for a download you trust from this repository.
 
 ## Alternative Download
 
@@ -63,9 +66,9 @@ The app can search by:
 
 ### App Will Not Open
 
-- Make sure you extracted the whole ZIP before running it
-- Do not move `MetarViewer.exe` out of its published folder
-- If Windows warns about an unknown app, use `More info` and then `Run anyway` if you trust the release source
+- Confirm that you downloaded the correct Apple-Silicon or Intel `.dmg`
+- Move the app to Applications before launching it
+- For the unsigned build, Control-click the app and choose **Open** on first launch
 
 ### Could Not Retrieve METAR
 
@@ -89,26 +92,40 @@ Try:
 ## For Developers
 
 If you want to build the app locally, you will need:
-- Windows 11
-- Visual Studio 2022
+- macOS 10.15 or newer
 - .NET 8 SDK
 
-Open `MetarViewer.sln` in Visual Studio, or publish from the command line:
+Build and run from the command line:
 
-```powershell
-dotnet publish .\src\MetarViewer.App\MetarViewer.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishDir=.\publish\win-x64-self-contained\
+```bash
+dotnet run --project src/MetarViewer.App/MetarViewer.App.csproj
 ```
 
 Run tests with:
 
-```powershell
-dotnet test .\tests\MetarViewer.Core.Tests\MetarViewer.Core.Tests.csproj
+```bash
+dotnet test tests/MetarViewer.Core.Tests/MetarViewer.Core.Tests.csproj
 ```
 
 The code is split into two projects. `MetarViewer.Core` holds the METAR parsing,
 decoding and web service code and targets plain `net8.0`, so its tests run on any
-operating system. `MetarViewer.App` holds the WinUI window, view model and value
-converters, and requires Windows to build.
+operating system. `MetarViewer.App` holds the Avalonia desktop UI and publishes for
+both Apple Silicon (`osx-arm64`) and Intel (`osx-x64`) Macs.
+
+## Maintainer: Publishing a Mac Release
+
+Push a tag beginning with `mac-v` from a commit on the `Mac-Version` branch:
+
+```bash
+git switch Mac-Version
+git tag mac-v1.0.0
+git push origin mac-v1.0.0
+```
+
+The **Build macOS Release** GitHub Action tests the project, builds separate Apple
+Silicon and Intel application bundles, packages each as a `.dmg`, and creates an
+explicitly titled **METAR Viewer for Mac** entry under GitHub Releases. It can also
+be started manually from the Actions tab with a `mac-v…` tag.
 
 ## Project Notes
 

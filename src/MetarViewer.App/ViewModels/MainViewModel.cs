@@ -1,9 +1,5 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.UI.Xaml;
 using MetarViewer.Helpers;
 using MetarViewer.Models;
 using MetarViewer.Services;
@@ -73,45 +69,34 @@ public partial class MainViewModel : ObservableObject
     private string _flightCategoryDescription = string.Empty;
 
     /// <summary>
-    /// The current application theme (Light, Dark, or Default).
+    /// Whether the application is using its dark appearance.
     /// </summary>
     [ObservableProperty]
-    private ElementTheme _currentTheme = ElementTheme.Default;
+    private bool _isDarkTheme;
 
     /// <summary>
     /// Gets whether there is currently an error to display.
     /// </summary>
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
+    public bool HasSuggestions => AirportSuggestions.Count > 0;
+
     /// <summary>
     /// UI visibility for the loading spinner.
     /// </summary>
-    public Visibility LoadingVisibility => IsLoading ? Visibility.Visible : Visibility.Collapsed;
-
-    /// <summary>
-    /// UI visibility for the main METAR display.
-    /// </summary>
-    public Visibility CurrentMetarVisibility => CurrentMetar is null ? Visibility.Collapsed : Visibility.Visible;
+    public bool HasCurrentMetar => CurrentMetar is not null;
 
     /// <summary>
     /// Glyph for the theme toggle button based on current theme.
     /// </summary>
-    public string ThemeToggleGlyph => CurrentTheme switch
-    {
-        ElementTheme.Dark => "\u263E", // Moon
-        ElementTheme.Light => "\u2600", // Sun
-        _ => "\u25D0" // Half circle
-    };
+    public string ThemeToggleGlyph => IsDarkTheme ? "☀" : "☾";
 
     /// <summary>
     /// Tooltip text for the theme toggle button.
     /// </summary>
-    public string ThemeToggleToolTip => CurrentTheme switch
-    {
-        ElementTheme.Dark => "Dark mode enabled. Click to switch to light mode",
-        ElementTheme.Light => "Light mode enabled. Click to switch to dark mode",
-        _ => "Theme follows the app default. Click to switch to dark mode"
-    };
+    public string ThemeToggleToolTip => IsDarkTheme
+        ? "Switch to light mode"
+        : "Switch to dark mode";
 
     /// <summary>
     /// Formatted observation time string.
@@ -153,15 +138,16 @@ public partial class MainViewModel : ObservableObject
     }
 
     // Property update notifications for compound UI properties
-    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(LoadingVisibility));
     partial void OnErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasError));
+    partial void OnAirportSuggestionsChanged(IReadOnlyList<AirportSuggestion> value) =>
+        OnPropertyChanged(nameof(HasSuggestions));
     partial void OnCurrentMetarChanged(MetarData? value)
     {
-        OnPropertyChanged(nameof(CurrentMetarVisibility));
+        OnPropertyChanged(nameof(HasCurrentMetar));
         OnPropertyChanged(nameof(ObservationTimeText));
         OnPropertyChanged(nameof(StationHeaderText));
     }
-    partial void OnCurrentThemeChanged(ElementTheme value)
+    partial void OnIsDarkThemeChanged(bool value)
     {
         OnPropertyChanged(nameof(ThemeToggleGlyph));
         OnPropertyChanged(nameof(ThemeToggleToolTip));
@@ -233,9 +219,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTheme()
     {
-        CurrentTheme = CurrentTheme == ElementTheme.Dark
-            ? ElementTheme.Light
-            : ElementTheme.Dark;
+        IsDarkTheme = !IsDarkTheme;
     }
 
     /// <summary>
@@ -312,8 +296,9 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-            settings.Values["LastStation"] = stationId;
+            var settingsPath = GetSettingsPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+            File.WriteAllText(settingsPath, stationId);
         }
         catch
         {
@@ -325,14 +310,19 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            var settings = Windows.Storage.ApplicationData.Current.LocalSettings;
-            return settings.Values["LastStation"] as string;
+            var settingsPath = GetSettingsPath();
+            return File.Exists(settingsPath) ? File.ReadAllText(settingsPath).Trim() : null;
         }
         catch
         {
             return null;
         }
     }
+
+    private static string GetSettingsPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "METAR Viewer",
+        "last-station.txt");
 
     /// <summary>
     /// Converts a selected suggestion into a resolution object for further lookups.
