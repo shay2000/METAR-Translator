@@ -1,4 +1,5 @@
 using MetarViewer.Models;
+using MetarViewer.Parsing;
 
 namespace MetarViewer.Helpers;
 
@@ -51,7 +52,7 @@ public static class MetarDecoder
             return "Visibility information not available";
         }
 
-        var unit = metar.VisibilityUnit ?? "SM";
+        var unit = metar.VisibilityUnit ?? VisibilityUnits.StatuteMiles;
         return $"Visibility {metar.Visibility} {unit}";
     }
 
@@ -118,17 +119,18 @@ public static class MetarDecoder
             return "Altimeter information not available";
         }
 
-        // If unit is hPa or value looks like hPa (>= 100)
-        if (string.Equals(metar.AltimeterUnit, "hPa", StringComparison.OrdinalIgnoreCase) ||
+        // Treat the reading as hectopascals when it says so, or when the unit is missing but
+        // the magnitude can only be hectopascals (an inHg setting is always well below 100).
+        if (string.Equals(metar.AltimeterUnit, PressureUnits.Hectopascals, StringComparison.OrdinalIgnoreCase) ||
             (string.IsNullOrWhiteSpace(metar.AltimeterUnit) && metar.Altimeter >= 100))
         {
             var hpaFormat = metar.Altimeter == decimal.Truncate(metar.Altimeter.Value) ? "F0" : "F1";
-            var inHg = metar.Altimeter.Value / 33.8639m;
+            var inHg = PressureUnits.HectopascalsToInchesOfMercury(metar.Altimeter.Value);
             return $"QNH {metar.Altimeter.Value.ToString(hpaFormat)} hPa ({inHg:F2} inHg)";
         }
 
         // Otherwise assume inHg
-        var hpa = metar.Altimeter * 33.8639m;
+        var hpa = PressureUnits.InchesOfMercuryToHectopascals(metar.Altimeter.Value);
         return $"QNH {metar.Altimeter:F2} inHg ({hpa:F0} hPa)";
     }
 
@@ -161,10 +163,10 @@ public static class MetarDecoder
     {
         return category?.ToUpperInvariant() switch
         {
-            "VFR" => "VFR (Visual Flight Rules)",
-            "MVFR" => "MVFR (Marginal VFR)",
-            "IFR" => "IFR (Instrument Flight Rules)",
-            "LIFR" => "LIFR (Low IFR)",
+            FlightCategories.Vfr => "VFR (Visual Flight Rules)",
+            FlightCategories.MarginalVfr => "MVFR (Marginal VFR)",
+            FlightCategories.Ifr => "IFR (Instrument Flight Rules)",
+            FlightCategories.LowIfr => "LIFR (Low IFR)",
             _ => "Unknown"
         };
     }

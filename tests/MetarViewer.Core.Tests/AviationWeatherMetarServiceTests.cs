@@ -55,6 +55,31 @@ public class AviationWeatherMetarServiceTests
         Assert.Equal(new DateTime(2026, 3, 28, 16, 0, 0, DateTimeKind.Utc), result.ObservationTime);
     }
 
+    [Theory]
+    [InlineData("TEMPO")] // Ends in "PO", the code for dust/sand whirls.
+    [InlineData("BECMG")] // Contains "CM".
+    public async Task GetMetarAsync_TrendGroupIsNotReportedAsWeather(string trendGroup)
+    {
+        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse($$"""
+            [
+              {
+                "icaoId": "EGLL",
+                "reportTime": "2026-03-28T16:20:00.000Z",
+                "rawOb": "METAR EGLL 281620Z 32012KT 9999 SCT030 09/M02 Q1026 {{trendGroup}} 3000 BR",
+                "clouds": []
+              }
+            ]
+            """));
+        var service = CreateService(handler);
+
+        var result = await service.GetMetarAsync("EGLL");
+
+        Assert.NotNull(result);
+        Assert.DoesNotContain(trendGroup, result!.WeatherPhenomena);
+        // Genuine weather in the same report is still recognised.
+        Assert.Contains("BR", result.WeatherPhenomena);
+    }
+
     [Fact]
     public async Task GetMetarAsync_NoContent_ReturnsNull()
     {

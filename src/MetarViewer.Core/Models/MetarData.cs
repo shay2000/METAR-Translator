@@ -89,7 +89,36 @@ public class MetarData
     /// Indicates if Ceiling and Visibility are OK.
     /// </summary>
     public bool IsCavok { get; set; }
+
+    /// <summary>
+    /// Indicates the report came from an automated station (the "AUTO" modifier).
+    /// </summary>
+    public bool IsAutomated { get; set; }
+
+    /// <summary>
+    /// Indicates the report is a correction to a previous one (the "COR" modifier).
+    /// </summary>
+    public bool IsCorrected { get; set; }
+
+    /// <summary>
+    /// The remarks section following "RMK", if present.
+    /// </summary>
+    /// <remarks>
+    /// Remarks were previously discarded during parsing. They are retained here so the
+    /// information is not lost, even though it is not yet surfaced in the interface.
+    /// </remarks>
+    public string? Remarks { get; set; }
+
+    /// <summary>
+    /// Tokens that no parser recognised.
+    /// </summary>
+    /// <remarks>
+    /// Unrecognised groups used to be dropped silently, which made gaps in parser coverage
+    /// invisible. Collecting them makes unsupported groups diagnosable.
+    /// </remarks>
+    public List<string> UnparsedTokens { get; set; } = new();
 }
+
 
 /// <summary>
 /// Represents a layer of cloud coverage.
