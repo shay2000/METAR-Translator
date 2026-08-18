@@ -1,7 +1,17 @@
 <Project>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'MetarViewer.Tests'">
-    <BaseIntermediateOutputPath>obj\MetarViewer.Tests\</BaseIntermediateOutputPath>
-    <MSBuildProjectExtensionsPath>obj\MetarViewer.Tests\</MSBuildProjectExtensionsPath>
-    <BaseOutputPath>bin\MetarViewer.Tests\</BaseOutputPath>
+  <!--
+    Shared build policy for every project in the repository.
+
+    Previously this file only contained output-path overrides, which existed because the
+    app and test projects shared the repository root as their project directory. Each
+    project now owns its own directory, so those workarounds are no longer required.
+  -->
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 </Project>
