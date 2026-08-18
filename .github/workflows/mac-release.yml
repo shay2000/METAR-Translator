@@ -1,0 +1,113 @@
+name: Build macOS Release
+
+on:
+  push:
+    tags:
+      - "mac-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Mac release tag, for example mac-v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  mac-release:
+    name: Package macOS (${{ matrix.arch }})
+    runs-on: macos-14
+    strategy:
+      matrix:
+        include:
+          - arch: Apple-Silicon
+            runtime: osx-arm64
+          - arch: Intel
+            runtime: osx-x64
+
+    steps:
+      - name: Check out Mac-Version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'Mac-Version' || github.ref }}
+          fetch-depth: 0
+
+      - name: Ensure tag belongs to Mac-Version
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin Mac-Version
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/Mac-Version || {
+            echo "Mac release tags must point to a commit on Mac-Version." >&2
+            exit 1
+          }
+
+      - name: Validate release tag
+        id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          [[ "$TAG" == mac-v* ]] || { echo "Tag must start with mac-v" >&2; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test core
+        run: dotnet test tests/MetarViewer.Core.Tests/MetarViewer.Core.Tests.csproj -c Release
+
+      - name: Publish app
+        run: |
+          dotnet publish src/MetarViewer.App/MetarViewer.App.csproj \
+            -c Release -r "${{ matrix.runtime }}" --self-contained true \
+            -p:PublishSingleFile=true -p:DebugType=None \
+            -o "publish/${{ matrix.runtime }}"
+
+      - name: Create app bundle and DMG
+        env:
+          ARCH: ${{ matrix.arch }}
+          RUNTIME: ${{ matrix.runtime }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          APP="dist/METAR Viewer.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" dmg-root
+          cp -R "publish/$RUNTIME/." "$APP/Contents/MacOS/"
+          chmod +x "$APP/Contents/MacOS/MetarViewer"
+          VERSION="${TAG#mac-v}"
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>METAR Viewer</string>
+            <key>CFBundleDisplayName</key><string>METAR Viewer for Mac</string>
+            <key>CFBundleIdentifier</key><string>com.shay2000.metarviewer</string>
+            <key>CFBundleExecutable</key><string>MetarViewer</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>$VERSION</string>
+            <key>CFBundleVersion</key><string>${GITHUB_RUN_NUMBER}</string>
+            <key>LSMinimumSystemVersion</key><string>10.15</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict></plist>
+          PLIST
+          cp -R "$APP" dmg-root/
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "METAR Viewer for Mac" -srcfolder dmg-root \
+            -ov -format UDZO "METAR-Viewer-Mac-${ARCH}-${VERSION}.dmg"
+
+      - name: Create or update explicit Mac release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          ASSET="METAR-Viewer-Mac-${ARCH}-${TAG#mac-v}.dmg"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target Mac-Version \
+              --title "METAR Viewer for Mac ${TAG#mac-v}" \
+              --notes "macOS release of METAR Viewer. Choose Apple-Silicon for M-series Macs or Intel for Intel-based Macs." \
+              || gh release view "$TAG" >/dev/null
+          fi
+          gh release upload "$TAG" "$ASSET" --clobber
