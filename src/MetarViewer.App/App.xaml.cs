@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml;
 using MetarViewer.Services;
 using MetarViewer.ViewModels;
 using MetarViewer.Views;
-using System;
 
 namespace MetarViewer;
 
@@ -33,36 +32,8 @@ public partial class App : Application
     /// </summary>
     private void ConfigureServices(ServiceCollection services)
     {
-        // Aviation Weather API Client
-        services.AddHttpClient(AviationWeatherMetarService.AviationWeatherHttpClientName, client =>
-        {
-            client.BaseAddress = AviationWeatherMetarService.AviationWeatherBaseUri;
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
-        });
-
-        // VATSIM METAR API Client
-        services.AddHttpClient(VatsimMetarService.VatsimMetarHttpClientName, client =>
-        {
-            client.BaseAddress = VatsimMetarService.VatsimMetarBaseUri;
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
-        });
-
-        // Airports Lookup API Client
-        services.AddHttpClient(AirportLookupService.AirportsApiHttpClientName, client =>
-        {
-            client.BaseAddress = AirportLookupService.AirportsApiBaseUri;
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("MetarViewer/1.0");
-        });
-
-        // Register core services using the Hybrid implementation
-        services.AddSingleton<IMetarService>(sp =>
-            new HybridMetarService(sp.GetRequiredService<IHttpClientFactory>()));
-
-        services.AddSingleton<IAirportLookupService>(sp =>
-            new AirportLookupService(sp.GetRequiredService<IHttpClientFactory>()));
+        // METAR sources, airport lookup, and the HTTP clients they need.
+        services.AddMetarViewerServices();
 
         // ViewModels
         services.AddTransient<MainViewModel>();

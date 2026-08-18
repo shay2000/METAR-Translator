@@ -9,7 +9,11 @@ namespace MetarViewer.Services;
 /// <summary>
 /// Service for retrieving METAR data from aviationweather.gov API.
 /// </summary>
-public class AviationWeatherMetarService : IMetarService
+/// <remarks>
+/// This service always queries the API. Caching is applied by
+/// <see cref="CachingMetarService"/> so that the policy lives in one place.
+/// </remarks>
+public sealed class AviationWeatherMetarService : IMetarService
 {
     internal const string AviationWeatherHttpClientName = "AviationWeather";
     public static readonly Uri AviationWeatherBaseUri = new("https://aviationweather.gov/api/data/");
@@ -17,8 +21,6 @@ public class AviationWeatherMetarService : IMetarService
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _httpClient;
-    private readonly Dictionary<string, CachedMetar> _cache = new();
-    private readonly TimeSpan _cacheExpiration = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AviationWeatherMetarService"/> class.
@@ -37,21 +39,10 @@ public class AviationWeatherMetarService : IMetarService
     /// <returns>A MetarData object if found, otherwise null.</returns>
     public async Task<MetarData?> GetMetarAsync(string stationId, CancellationToken cancellationToken = default)
     {
-        var normalizedStationId = NormalizeStationId(stationId);
-        if (string.IsNullOrEmpty(normalizedStationId))
+        var normalizedStationId = StationId.Normalize(stationId);
+        if (normalizedStationId.Length == 0)
         {
             return null;
-        }
-
-        // Check local cache first to avoid over-requesting
-        if (_cache.TryGetValue(normalizedStationId, out var cached))
-        {
-            if (DateTime.UtcNow - cached.Timestamp < _cacheExpiration)
-            {
-                return cached.Data;
-            }
-
-            _cache.Remove(normalizedStationId);
         }
 
         try
@@ -83,16 +74,7 @@ public class AviationWeatherMetarService : IMetarService
                 return null;
             }
 
-            var metarData = MapToMetarData(report, normalizedStationId);
-
-            // Cache the result for future requests
-            _cache[normalizedStationId] = new CachedMetar
-            {
-                Data = metarData,
-                Timestamp = DateTime.UtcNow
-            };
-
-            return metarData;
+            return MapToMetarData(report, normalizedStationId);
         }
         catch (HttpRequestException)
         {
@@ -160,11 +142,6 @@ public class AviationWeatherMetarService : IMetarService
         return metarData;
     }
 
-    private static string NormalizeStationId(string stationId)
-    {
-        return stationId.Trim().ToUpperInvariant();
-    }
-
     private static int? RoundToInt(decimal? value)
     {
         if (!value.HasValue)
@@ -220,14 +197,5 @@ public class AviationWeatherMetarService : IMetarService
             .Where(MetarTokenClassifier.LooksLikeWeatherToken)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    /// <summary>
-    /// Internal representation of a cached METAR entry.
-    /// </summary>
-    private class CachedMetar
-    {
-        public MetarData Data { get; set; } = null!;
-        public DateTime Timestamp { get; set; }
     }
 }

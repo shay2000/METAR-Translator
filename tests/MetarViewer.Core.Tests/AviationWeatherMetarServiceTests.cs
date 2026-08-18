@@ -92,34 +92,20 @@ public class AviationWeatherMetarServiceTests
     }
 
     [Fact]
-    public async Task GetMetarAsync_CachesSuccessfulResults()
+    public async Task GetMetarAsync_NormalizesStationIdBeforeQuerying()
     {
-        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
-            [
-              {
-                "icaoId": "EGLL",
-                "reportTime": "2026-03-28T16:20:00.000Z",
-                "temp": 9,
-                "dewp": -2,
-                "wdir": 320,
-                "wspd": 12,
-                "wgst": 24,
-                "visib": "6+",
-                "altim": 1026,
-                "rawOb": "METAR EGLL 281620Z AUTO 32012G24KT 9999 NCD 09/M02 Q1026 NOSIG",
-                "clouds": [],
-                "fltCat": "VFR"
-              }
-            ]
-            """));
+        Uri? requestedUri = null;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            requestedUri = request.RequestUri;
+            return CreateJsonResponse("[]");
+        });
         var service = CreateService(handler);
 
-        var firstResult = await service.GetMetarAsync("egll");
-        var secondResult = await service.GetMetarAsync("EGLL");
+        await service.GetMetarAsync("  egll  ");
 
-        Assert.NotNull(firstResult);
-        Assert.NotNull(secondResult);
-        Assert.Equal(1, handler.CallCount);
+        Assert.NotNull(requestedUri);
+        Assert.Contains("ids=EGLL", requestedUri!.Query, StringComparison.Ordinal);
     }
 
     [Fact]

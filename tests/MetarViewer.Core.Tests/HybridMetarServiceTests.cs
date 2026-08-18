@@ -1,5 +1,4 @@
-using System.Net;
-using System.Text;
+using MetarViewer.Models;
 using MetarViewer.Services;
 using Xunit;
 
@@ -8,115 +7,79 @@ namespace MetarViewer.Tests;
 public class HybridMetarServiceTests
 {
     [Fact]
-    public async Task GetMetarAsync_UsesAviationWeatherFallbackWhenVatsimMisses()
+    public async Task GetMetarAsync_FallsBackToNextSourceWhenFirstHasNoReport()
     {
-        using var vatsimHandler = new StubHttpMessageHandler(_ => CreateJsonResponse("[]"));
-        using var aviationWeatherHandler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
-            [
-              {
-                "icaoId": "OTHH",
-                "reportTime": "2026-03-28T16:00:00.000Z",
-                "temp": 30,
-                "dewp": 19,
-                "wdir": 330,
-                "wspd": 11,
-                "visib": "6+",
-                "altim": 1008,
-                "rawOb": "METAR OTHH 281600Z 33011KT 6000 FEW030 30/19 Q1008",
-                "clouds": [
-                  { "cover": "FEW", "base": 3000 }
-                ],
-                "fltCat": "VFR"
-              }
-            ]
-            """));
-
-        var service = new HybridMetarService(new StubHttpClientFactory(
-            CreateClient(VatsimMetarService.VatsimMetarBaseUri, vatsimHandler),
-            CreateClient(AviationWeatherMetarService.AviationWeatherBaseUri, aviationWeatherHandler)));
+        var missing = new StubMetarService(null);
+        var found = new StubMetarService(new MetarData { StationId = "OTHH", Temperature = 30 });
+        var service = new HybridMetarService(missing, found);
 
         var result = await service.GetMetarAsync("OTHH");
 
         Assert.NotNull(result);
         Assert.Equal("OTHH", result!.StationId);
-        Assert.Equal(30, result.Temperature);
-        Assert.Equal(1008m, result.Altimeter);
+        Assert.Equal(1, missing.CallCount);
+        Assert.Equal(1, found.CallCount);
     }
 
     [Fact]
-    public async Task GetMetarAsync_ReturnsVatsimResultWithoutUsingFallback()
+    public async Task GetMetarAsync_StopsAtFirstSourceThatHasAReport()
     {
-        using var vatsimHandler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
-            [
-              {
-                "id": "OMAA",
-                "metar": "281700Z 31010KT 9999 FEW030 28/14 Q1010"
-              }
-            ]
-            """));
-        using var aviationWeatherHandler = new StubHttpMessageHandler(_ => throw new Xunit.Sdk.XunitException("Fallback should not be called"));
-
-        var service = new HybridMetarService(new StubHttpClientFactory(
-            CreateClient(VatsimMetarService.VatsimMetarBaseUri, vatsimHandler),
-            CreateClient(AviationWeatherMetarService.AviationWeatherBaseUri, aviationWeatherHandler)));
+        var preferred = new StubMetarService(new MetarData { StationId = "OMAA", Temperature = 28 });
+        var fallback = new StubMetarService(new MetarData { StationId = "OMAA", Temperature = 99 });
+        var service = new HybridMetarService(preferred, fallback);
 
         var result = await service.GetMetarAsync("OMAA");
 
         Assert.NotNull(result);
-        Assert.Equal("OMAA", result!.StationId);
-        Assert.Equal(28, result.Temperature);
+        Assert.Equal(28, result!.Temperature);
+        Assert.Equal(0, fallback.CallCount);
     }
 
-    private static HttpClient CreateClient(Uri baseAddress, HttpMessageHandler handler)
+    [Fact]
+    public async Task GetMetarAsync_ReturnsNullWhenNoSourceHasAReport()
     {
-        return new HttpClient(handler)
-        {
-            BaseAddress = baseAddress
-        };
+        var service = new HybridMetarService(new StubMetarService(null), new StubMetarService(null));
+
+        Assert.Null(await service.GetMetarAsync("ZZZZ"));
     }
 
-    private static HttpResponseMessage CreateJsonResponse(string json)
+    [Fact]
+    public async Task GetMetarAsync_TriesSourcesInTheOrderGiven()
     {
-        return new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json")
-        };
+        var callOrder = new List<string>();
+        var service = new HybridMetarService(
+            new StubMetarService(null, () => callOrder.Add("first")),
+            new StubMetarService(null, () => callOrder.Add("second")));
+
+        await service.GetMetarAsync("EGLL");
+
+        Assert.Equal(new[] { "first", "second" }, callOrder);
     }
 
-    private sealed class StubHttpClientFactory : IHttpClientFactory
+    [Fact]
+    public void Constructor_RequiresAtLeastOneSource()
     {
-        private readonly HttpClient _vatsimClient;
-        private readonly HttpClient _aviationWeatherClient;
+        Assert.Throws<ArgumentException>(() => new HybridMetarService(Array.Empty<Func<IMetarService>>()));
+    }
 
-        public StubHttpClientFactory(HttpClient vatsimClient, HttpClient aviationWeatherClient)
+    private sealed class StubMetarService : IMetarService
+    {
+        private readonly MetarData? _result;
+        private readonly Action? _onCall;
+
+        public StubMetarService(MetarData? result, Action? onCall = null)
         {
-            _vatsimClient = vatsimClient;
-            _aviationWeatherClient = aviationWeatherClient;
+            _result = result;
+            _onCall = onCall;
         }
 
-        public HttpClient CreateClient(string name)
-        {
-            return name switch
-            {
-                VatsimMetarService.VatsimMetarHttpClientName => _vatsimClient,
-                AviationWeatherMetarService.AviationWeatherHttpClientName => _aviationWeatherClient,
-                _ => throw new Xunit.Sdk.XunitException($"Unexpected client name: {name}")
-            };
-        }
-    }
+        public int CallCount { get; private set; }
 
-    private sealed class StubHttpMessageHandler : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;
-
-        public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
+        public Task<MetarData?> GetMetarAsync(string stationId, CancellationToken cancellationToken = default)
         {
-            _responseFactory = responseFactory;
-        }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(_responseFactory(request));
+            CallCount++;
+            _onCall?.Invoke();
+            return Task.FromResult(_result);
         }
     }
 }
