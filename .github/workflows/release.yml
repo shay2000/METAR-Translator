@@ -31,11 +31,11 @@ jobs:
         run: dotnet restore .\MetarViewer.sln
 
       - name: Run tests
-        run: dotnet test .\MetarViewer.Tests.csproj --configuration Release --no-restore
+        run: dotnet test .\tests\MetarViewer.Core.Tests\MetarViewer.Core.Tests.csproj --configuration Release --no-restore
 
       - name: Publish Windows package
         run: >
-          dotnet publish .\MetarViewer.csproj
+          dotnet publish .\src\MetarViewer.App\MetarViewer.App.csproj
           -c Release
           -r win-x64
           --self-contained true

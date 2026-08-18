@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>MetarViewer</RootNamespace>
+    <AssemblyName>MetarViewer.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+  </ItemGroup>
+
+  <!--
+    The WinUI app reads internal constants (HTTP client names, base URIs) during DI
+    registration, and the test project exercises internal parsing types such as
+    RawMetarParser. Both were previously visible because every file compiled into a
+    single assembly; now that Core is its own assembly, they need explicit access.
+  -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>MetarViewer</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>MetarViewer.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

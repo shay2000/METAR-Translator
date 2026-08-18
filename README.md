@@ -96,14 +96,19 @@ If you want to build the app locally, you will need:
 Open `MetarViewer.sln` in Visual Studio, or publish from the command line:
 
 ```powershell
-dotnet publish .\MetarViewer.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishDir=.\publish\win-x64-self-contained\
+dotnet publish .\src\MetarViewer.App\MetarViewer.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsPackageType=None -p:WindowsAppSDKSelfContained=true -p:PublishDir=.\publish\win-x64-self-contained\
 ```
 
 Run tests with:
 
 ```powershell
-dotnet test .\MetarViewer.Tests.csproj
+dotnet test .\tests\MetarViewer.Core.Tests\MetarViewer.Core.Tests.csproj
 ```
+
+The code is split into two projects. `MetarViewer.Core` holds the METAR parsing,
+decoding and web service code and targets plain `net8.0`, so its tests run on any
+operating system. `MetarViewer.App` holds the WinUI window, view model and value
+converters, and requires Windows to build.
 
 ## Project Notes
 

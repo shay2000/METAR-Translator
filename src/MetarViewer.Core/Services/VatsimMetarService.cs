@@ -8,7 +8,11 @@ namespace MetarViewer.Services;
 /// <summary>
 /// Service for retrieving METAR data from the VATSIM METAR API.
 /// </summary>
-public class VatsimMetarService : IMetarService
+/// <remarks>
+/// This service always queries the API. Caching is applied by
+/// <see cref="CachingMetarService"/> so that the policy lives in one place.
+/// </remarks>
+public sealed class VatsimMetarService : IMetarService
 {
     internal const string VatsimMetarHttpClientName = "VatsimMetar";
     public static readonly Uri VatsimMetarBaseUri = new("https://metar.vatsim.net/");
@@ -16,8 +20,6 @@ public class VatsimMetarService : IMetarService
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _httpClient;
-    private readonly Dictionary<string, CachedMetar> _cache = new();
-    private readonly TimeSpan _cacheExpiration = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VatsimMetarService"/> class.
@@ -36,21 +38,10 @@ public class VatsimMetarService : IMetarService
     /// <returns>A MetarData object if found, otherwise null.</returns>
     public async Task<MetarData?> GetMetarAsync(string stationId, CancellationToken cancellationToken = default)
     {
-        var normalizedStationId = stationId.Trim().ToUpperInvariant();
-        if (string.IsNullOrWhiteSpace(normalizedStationId))
+        var normalizedStationId = StationId.Normalize(stationId);
+        if (normalizedStationId.Length == 0)
         {
             return null;
-        }
-
-        // Try to get from local cache first
-        if (_cache.TryGetValue(normalizedStationId, out var cached))
-        {
-            if (DateTime.UtcNow - cached.Timestamp < _cacheExpiration)
-            {
-                return cached.Data;
-            }
-
-            _cache.Remove(normalizedStationId);
         }
 
         try
@@ -78,16 +69,7 @@ public class VatsimMetarService : IMetarService
             }
 
             // VATSIM provides raw METAR strings, so we use RawMetarParser
-            var metarData = RawMetarParser.Parse(report.Metar, normalizedStationId);
-            
-            // Cache the successful result
-            _cache[normalizedStationId] = new CachedMetar
-            {
-                Data = metarData,
-                Timestamp = DateTime.UtcNow
-            };
-
-            return metarData;
+            return RawMetarParser.Parse(report.Metar, normalizedStationId);
         }
         catch (HttpRequestException)
         {
@@ -104,15 +86,6 @@ public class VatsimMetarService : IMetarService
             // Data format errors
             return null;
         }
-    }
-
-    /// <summary>
-    /// Represents a cached METAR entry with a timestamp for expiration.
-    /// </summary>
-    private sealed class CachedMetar
-    {
-        public MetarData Data { get; set; } = null!;
-        public DateTime Timestamp { get; set; }
     }
 
     /// <summary>

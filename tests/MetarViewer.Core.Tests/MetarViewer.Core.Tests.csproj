@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>MetarViewer.Core.Tests</AssemblyName>
+    <RootNamespace>MetarViewer.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!--
+    A real project reference replaces the previous hand-maintained list of
+    <Compile Include ... Link="Source\..."/> entries, which had to be updated by hand
+    every time a source file was added.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MetarViewer.Core\MetarViewer.Core.csproj" />
+  </ItemGroup>
+</Project>
