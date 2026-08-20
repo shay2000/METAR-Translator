@@ -15,7 +15,6 @@ on:
       - "integrations/msfs2020/**"
   workflow_dispatch:
 
-
 permissions:
   contents: read
 
@@ -41,31 +40,71 @@ jobs:
         with:
           node-version: 24
 
-      - name: Resolve current MSFS 2020 SDK installer
+      # The tests and source validation need no SDK, so they run first. That way a
+      # vendor-side SDK outage can never stop the panel itself from being checked.
+      - name: Run package tests
+        shell: cmd
+        run: node --test
+
+      - name: Validate package source
+        shell: cmd
+        run: node tools\validate-source.mjs .
+
+      - name: Download the MSFS 2020 SDK core installer
+        id: sdk
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
 
+          # The official feed lists game versions newest-first, but the installer it
+          # advertises is not always on the CDN: the newest entry resolved to
+          # 0.24.6, which returns HTTP 404, and that failed every run. So try the
+          # newest few entries and keep the first installer that really downloads
+          # rather than trusting one URL.
           $metadata = Invoke-RestMethod -Uri 'https://sdk.flightsimulator.com/files/sdk.json'
-          $game = @($metadata.game_versions) | Select-Object -First 1
-          $relativeInstaller = $game.downloads_menu.'SDK Installer (Core)'.value
 
-          if ([string]::IsNullOrWhiteSpace($relativeInstaller)) {
+          $candidates = @($metadata.game_versions) |
+            ForEach-Object { $_.downloads_menu.'SDK Installer (Core)'.value } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -Unique |
+            Select-Object -First 5
+
+          if (-not $candidates) {
             throw 'The official SDK metadata did not contain a core installer URL.'
           }
 
-          $sdkUrl = "https://sdk.flightsimulator.com/files/$relativeInstaller"
-          "SDK_URL=$sdkUrl" >> $env:GITHUB_ENV
-          Write-Host 'Using the current MSFS 2020 SDK core installer from the official SDK feed.'
+          $installer = Join-Path $env:RUNNER_TEMP 'MSFS_SDK_Core.msi'
+
+          foreach ($candidate in $candidates) {
+            $url = "https://sdk.flightsimulator.com/files/$candidate"
+
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $installer
+              Write-Host "Downloaded the SDK core installer from $url."
+              "installer=$installer" >> $env:GITHUB_OUTPUT
+              "available=true" >> $env:GITHUB_OUTPUT
+              exit 0
+            }
+            catch {
+              $reason = $_.Exception.Message
+              Write-Host "::warning::$url could not be downloaded ($reason). Trying the previous SDK version."
+            }
+          }
+
+          # Releases are built by msfs-release.yml, which packages the panel without
+          # the SDK, so this job is validation only and must not fail main when the
+          # vendor's download feed is broken.
+          "available=false" >> $env:GITHUB_OUTPUT
+          Write-Host '::warning::No MSFS 2020 SDK core installer could be downloaded, so the SDK build was skipped. The tests and source validation above still ran.'
 
       - name: Install MSFS 2020 SDK core
+        if: steps.sdk.outputs.available == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          $installer = Join-Path $env:RUNNER_TEMP 'MSFS_SDK_Core.msi'
-          Invoke-WebRequest -Uri $env:SDK_URL -OutFile $installer
-
+          $installer = '${{ steps.sdk.outputs.installer }}'
           $arguments = "/i `"$installer`" /qn /norestart"
           $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList $arguments -Wait -PassThru
 
@@ -82,19 +121,13 @@ jobs:
           "MSFS_SDK=$sdkRoot" >> $env:GITHUB_ENV
           Write-Host "MSFS SDK installed at $sdkRoot."
 
-      - name: Run package tests
-        shell: cmd
-        run: node --test
-
-      - name: Validate package source
-        shell: cmd
-        run: node tools\validate-source.mjs .
-
       - name: Build and zip Community package
+        if: steps.sdk.outputs.available == 'true'
         shell: cmd
         run: build.bat "%MSFS_SDK%"
 
       - name: Upload ZIP artifact
+        if: steps.sdk.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: metar-viewer-msfs-2020-sdk-${{ github.sha }}
