@@ -146,7 +146,7 @@ cp "$plist_template" "$app_bundle/Contents/Info.plist"
 
 plutil -lint "$app_bundle/Contents/Info.plist"
 test -x "$macos_directory/MetarViewer"
-lipo -verify_arch "$architecture" "$macos_directory/MetarViewer"
+lipo "$macos_directory/MetarViewer" -verify_arch "$architecture"
 
 sign_code() {
   local code_path="$1"
@@ -208,7 +208,7 @@ plutil -lint "$mounted_app/Contents/Info.plist"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$mounted_app/Contents/Info.plist")" = "$version"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$mounted_app/Contents/Info.plist")" = "$build_number"
 test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$mounted_app/Contents/Info.plist")" = "$minimum_system_version"
-lipo -verify_arch "$architecture" "$mounted_app/Contents/MacOS/MetarViewer"
+lipo "$mounted_app/Contents/MacOS/MetarViewer" -verify_arch "$architecture"
 codesign --verify --deep --strict --verbose=2 "$mounted_app"
 
 hdiutil detach "$mount_point"
