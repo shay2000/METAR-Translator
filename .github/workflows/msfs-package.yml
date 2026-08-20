@@ -1,18 +1,22 @@
 name: Build MSFS 2020 Community Package
 
-# SDK-compiled validation build. This requires a Windows runner with the MSFS 2020
-# SDK and produces the authoritative package, but it cannot publish releases:
-# release publishing for msfs-v* tags is owned by msfs-release.yml so that only
-# one workflow ever writes the release asset.
+# SDK-compiled build, kept as the CI mirror of build.bat for anyone who has the
+# simulator installed. It cannot publish releases: publishing for msfs-v* tags is
+# owned by msfs-release.yml so that only one workflow ever writes the asset.
+#
+# Manual dispatch only, because fspackagetool.exe reads the Steam/MSFS install
+# path out of the registry and fails with "failed to locate the Steam
+# installation path" on GitHub-hosted runners, which have no game installed. It
+# therefore cannot pass on windows-latest and used to make every push to main
+# red. Nothing is lost by not running it on push:
+#   - the tests and source validation also run in msfs-integration.yml, on both
+#     ubuntu-latest and windows-latest, for these same paths;
+#   - the released ZIP is built by msfs-release.yml, which packages the panel
+#     without the SDK.
+# To actually compile with the SDK, dispatch this on a self-hosted Windows runner
+# that has MSFS 2020 and the SDK installed.
 
 on:
-  push:
-    branches:
-      # All versions now live on main; FlightSimIntegration is a historical backup.
-      - main
-    paths:
-      - ".github/workflows/msfs-package.yml"
-      - "integrations/msfs2020/**"
   workflow_dispatch:
 
 permissions:
@@ -92,9 +96,8 @@ jobs:
             }
           }
 
-          # Releases are built by msfs-release.yml, which packages the panel without
-          # the SDK, so this job is validation only and must not fail main when the
-          # vendor's download feed is broken.
+          # A broken vendor feed is not this repository's fault, and releases are
+          # built by msfs-release.yml without the SDK, so skip rather than fail.
           "available=false" >> $env:GITHUB_OUTPUT
           Write-Host '::warning::No MSFS 2020 SDK core installer could be downloaded, so the SDK build was skipped. The tests and source validation above still ran.'
 
