@@ -6,6 +6,8 @@ The panel uses the simulator's METAR first, falls back to VATSIM when needed, an
 
 > **Simulation use only.** This project is for flight simulation and hobby use. Never use it for real-world aviation, flight planning, navigation, or weather decisions.
 
+> **Source checkout notice:** this branch contains the package source, not a ready-to-install ZIP. The MSFS SDK must generate the compiled `.spb`, `manifest.json`, and `layout.json` before an installable package exists.
+
 ## Install it like an MSFS mod
 
 Download a packaged release ZIP from the [METAR Translator Flightsim.to page](https://flightsim.to/addon/106602/metar-translator) or a project release. A source checkout is not itself installable because the toolbar registration XML must be compiled into an `.spb` file by the MSFS 2020 SDK.
@@ -74,6 +76,12 @@ node tools\validate-source.mjs .
 ```
 
 See [integrations/msfs2020/README.md](integrations/msfs2020/README.md) for the complete maintainer/build workflow.
+
+For convenience, `.github/workflows/msfs-package.yml` can build the ZIP on a
+GitHub-hosted Windows runner and upload it as a workflow artifact. Pushing a tag
+such as `msfs-v1.0.0` also publishes the ZIP to a GitHub Release. The workflow
+does not install anything into your local Community folder; download the ZIP and
+extract it on your Windows MSFS machine.
 
 ## Repository note
 

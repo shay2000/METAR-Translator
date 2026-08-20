@@ -1,0 +1,117 @@
+name: Build MSFS 2020 Community Package
+
+on:
+  push:
+    branches:
+      - FlightSimIntegration
+    tags:
+      - "msfs-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: msfs-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Windows package
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: integrations/msfs2020
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Resolve current MSFS 2020 SDK installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $metadata = Invoke-RestMethod -Uri 'https://sdk.flightsimulator.com/files/sdk.json'
+          $game = @($metadata.game_versions) | Select-Object -First 1
+          $relativeInstaller = $game.downloads_menu.'SDK Installer (Core)'.value
+
+          if ([string]::IsNullOrWhiteSpace($relativeInstaller)) {
+            throw 'The official SDK metadata did not contain a core installer URL.'
+          }
+
+          $sdkUrl = "https://sdk.flightsimulator.com/files/$relativeInstaller"
+          "SDK_URL=$sdkUrl" >> $env:GITHUB_ENV
+          Write-Host 'Using the current MSFS 2020 SDK core installer from the official SDK feed.'
+
+      - name: Install MSFS 2020 SDK core
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $installer = Join-Path $env:RUNNER_TEMP 'MSFS_SDK_Core.msi'
+          Invoke-WebRequest -Uri $env:SDK_URL -OutFile $installer
+
+          $arguments = "/i `"$installer`" /qn /norestart"
+          $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList $arguments -Wait -PassThru
+
+          if ($process.ExitCode -notin @(0, 3010)) {
+            throw "MSFS SDK installation failed with exit code $($process.ExitCode)."
+          }
+
+          $sdkRoot = 'C:\MSFS SDK'
+          $packageTool = Join-Path $sdkRoot 'Tools\bin\fspackagetool.exe'
+          if (-not (Test-Path -LiteralPath $packageTool)) {
+            throw "The SDK installer completed, but fspackagetool.exe was not found at $packageTool."
+          }
+
+          "MSFS_SDK=$sdkRoot" >> $env:GITHUB_ENV
+          Write-Host "MSFS SDK installed at $sdkRoot."
+
+      - name: Run package tests
+        shell: cmd
+        run: node --test
+
+      - name: Validate package source
+        shell: cmd
+        run: node tools\validate-source.mjs .
+
+      - name: Build and zip Community package
+        shell: cmd
+        run: build.bat "%MSFS_SDK%"
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metar-viewer-msfs-2020-${{ github.sha }}
+          path: integrations/msfs2020/Packages/metar-viewer-toolbar.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish ZIP to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/msfs-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+          ZIP_PATH: Packages/metar-viewer-toolbar.zip
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ($env:RELEASE_TAG -notmatch '^msfs-v\d+\.\d+\.\d+$') {
+            throw 'Release tags must use the format msfs-vMAJOR.MINOR.PATCH, for example msfs-v1.0.0.'
+          }
+
+          gh release view $env:RELEASE_TAG --repo $env:REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $env:ZIP_PATH --repo $env:REPOSITORY --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $env:ZIP_PATH --repo $env:REPOSITORY --title "METAR Viewer for MSFS 2020 $env:RELEASE_TAG" --generate-notes --target $env:GITHUB_SHA
+          }

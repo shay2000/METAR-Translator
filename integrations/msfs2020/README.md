@@ -6,6 +6,8 @@ The panel runs inside the simulator's HTML/JavaScript UI. It does not launch the
 
 > **Simulation use only.** This integration is for flight simulation and hobby use. Never use it for real-world aviation, flight planning, navigation, or weather decisions.
 
+> **Current checkout:** this directory is source-only until `build.bat` is run on Windows with the MSFS 2020 SDK. The repository does not include a `Packages/` directory, a compiled `.spb`, or a ZIP artifact.
+
 ## Install a packaged release
 
 Players should install a compiled release ZIP, not this source directory:
@@ -88,6 +90,34 @@ Packages\metar-viewer-toolbar.zip
 ```
 
 Copy the folder into Community for local testing, or distribute the ZIP. Do not modify the generated package after validation; rebuild it when source files change.
+
+## Build the ZIP on GitHub Actions
+
+The repository includes a Windows workflow at `.github/workflows/msfs-package.yml`.
+It downloads the current official MSFS 2020 SDK core installer, runs the package
+build, and uploads `metar-viewer-toolbar.zip` as an Actions artifact.
+
+The workflow runs automatically for pushes to `FlightSimIntegration`, or you can
+start it from the repository's **Actions** tab with **Run workflow**. To publish
+the ZIP as a downloadable GitHub Release asset, push a version tag such as:
+
+```text
+msfs-v1.0.0
+```
+
+After the workflow succeeds:
+
+1. Download the ZIP from the workflow run's **Artifacts** section, or from the
+   GitHub Release for a version tag.
+2. Extract it so the destination contains
+   `Community\metar-viewer-toolbar\manifest.json`.
+3. Start MSFS 2020 and confirm the toolbar is enabled.
+
+GitHub Actions does not create or access your local MSFS `Community` folder. The
+hosted Windows runner also cannot perform in-simulator testing. If
+`fspackagetool.exe` requires a full MSFS installation on the runner, the hosted
+build will stop at that step; use the local Windows build above, or a Windows
+self-hosted runner with MSFS 2020 and the SDK installed.
 
 ### Portable tests and source validation
 

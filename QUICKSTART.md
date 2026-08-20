@@ -2,6 +2,8 @@
 
 Install METAR Viewer as a normal Microsoft Flight Simulator 2020 Community add-on.
 
+This repository currently contains source files only. If you do not already have a compiled `metar-viewer-toolbar` ZIP, follow the [build guide](integrations/msfs2020/README.md) first; the package cannot be created on macOS without the Windows MSFS SDK.
+
 ## Before you start
 
 You need:
@@ -39,7 +41,7 @@ You do **not** need the .NET desktop app, Visual Studio, Node.js, or the MSFS SD
 
 Do not copy the repository into Community. Files such as `MetarViewerToolbar.xml`, `PackageDefinitions`, and `PackageSources` are build inputs, not an installable mod. The package must contain the SDK-generated `InGamePanel_MetarViewer.spb`, `layout.json`, and `manifest.json`.
 
-To build it yourself, use a Windows machine with the MSFS 2020 SDK and Node.js, then follow [integrations/msfs2020/README.md](integrations/msfs2020/README.md).
+If this repository's GitHub Actions workflow is enabled, open **Actions → Build MSFS 2020 Community Package**, choose **Run workflow**, and download the ZIP from the completed run's **Artifacts** section. A tag such as `msfs-v1.0.0` publishes the same ZIP as a GitHub Release asset. If the hosted build fails while running `fspackagetool.exe`, use a Windows machine with the MSFS 2020 SDK and Node.js, then follow [integrations/msfs2020/README.md](integrations/msfs2020/README.md).
 
 ## Remove or update
 
