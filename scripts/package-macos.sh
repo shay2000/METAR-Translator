@@ -78,7 +78,8 @@ fi
 
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "$script_directory/.." && pwd)"
-project_path="$repository_root/src/MetarViewer.App/MetarViewer.App.csproj"
+project_path="$repository_root/src/MetarViewer.App.Avalonia/MetarViewer.App.Avalonia.csproj"
+
 plist_template="$repository_root/packaging/macos/Info.plist"
 entitlements_path="$repository_root/packaging/macos/MetarViewer.entitlements"
 

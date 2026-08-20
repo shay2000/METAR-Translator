@@ -1,20 +1,4 @@
 {
-  // This repository pins its SDK in global.json ("8.0.418", rollForward:
-  // latestFeature). That pin can only be satisfied by an 8.0.4xx SDK, so a
-  // machine whose system-wide `dotnet` is a different major version (e.g. 10.x)
-  // will fail to load MetarViewer.sln with a misleading error:
-  //
-  //   The application 'sln' does not exist or is not a managed .dll or .exe
-  //   A compatible .NET SDK was not found.
-  //
-  // The settings below point VS Code and its integrated terminal at the
-  // repo-local SDK in ./.dotnet, which does satisfy the pin.
-  //
-  // Run `./scripts/bootstrap-dotnet.sh` once to create ./.dotnet, then reload
-  // the VS Code window so the terminal environment below takes effect.
-
-  // SDK resolution for the C# extension / language server.
-  "dotnet.dotnetPath": "${workspaceFolder}/.dotnet",
   "omnisharp.dotnetPath": "${workspaceFolder}/.dotnet",
   "dotnet.server.useOmnisharp": false,
 

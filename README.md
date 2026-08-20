@@ -6,7 +6,8 @@ The panel uses the simulator's METAR first, falls back to VATSIM when needed, an
 
 > **Simulation use only.** This project is for flight simulation and hobby use. Never use it for real-world aviation, flight planning, navigation, or weather decisions.
 
-> **Source checkout notice:** this branch contains the package source, not a ready-to-install ZIP. A packaged ZIP has to be generated first, either by the MSFS 2020 SDK or by the portable packager described in [Build from source](#build-from-source).
+> **Source checkout notice:** this repository contains the package source, not a ready-to-install ZIP. A packaged ZIP has to be generated first, either by the MSFS 2020 SDK or by the portable packager described in [Build from source](#build-from-source).
+
 
 ## Install it like an MSFS mod
 
@@ -109,11 +110,71 @@ marked as not-latest so they sit alongside it.
 branch for validation, but it no longer publishes releases, so only one workflow
 ever writes a release asset.
 
-## Repository note
+## Repository structure
 
-The `src/` and `tests/` directories also contain the separate METAR Viewer desktop application and its tests. They are not required to install or run the MSFS 2020 toolbar panel.
+Every platform variant now lives on **one branch** as sibling projects in a single
+solution. There are no longer permanent `Mac-Version` / `Windows-Version` /
+`FlightSimIntegration` branches to keep in sync.
+
+```text
+src/
+  MetarViewer.Core/            Shared parsing, models and services. No UI code.
+  MetarViewer.App.Avalonia/    Cross-platform desktop UI (macOS, Linux, Windows).
+  MetarViewer.App.WinUI/       Windows-native WinUI 3 UI. Builds on Windows only.
+integrations/
+  msfs2020/                    MSFS 2020 in-game toolbar panel (HTML/JS + packagers).
+tests/
+  MetarViewer.Core.Tests/            Shared-logic tests.
+  MetarViewer.App.Avalonia.Tests/    View-model tests for the Avalonia app.
+```
+
+Both desktop apps reference `MetarViewer.Core`, and `MetarViewer.Core` references
+neither of them. Any METAR or airport logic worth sharing belongs in Core.
+
+### Build and run the desktop apps
+
+The cross-platform app runs on macOS, Linux and Windows:
+
+```bash
+dotnet build src/MetarViewer.App.Avalonia
+dotnet run --project src/MetarViewer.App.Avalonia
+```
+
+The WinUI 3 app is Windows-only and **must be built from Windows**:
+
+```bash
+dotnet build src/MetarViewer.App.WinUI
+dotnet run --project src/MetarViewer.App.WinUI
+
+```
+
+On macOS or Linux, `dotnet build MetarViewer.sln` deliberately skips the WinUI
+project instead of failing: it is mapped to the `x64` solution platform only, so
+the default `Any CPU` build stays green everywhere. Building it directly on a
+non-Windows machine fails with `NETSDK1100`, which is expected.
+
+> The shipping Windows `.exe` is currently published from
+> **`MetarViewer.App.Avalonia`**, not from `MetarViewer.App.WinUI`. The WinUI
+> project is retained from the old `Windows-Version` branch for a Windows-native
+> look, and its build has not been verified since the Phase 1 refactor (see
+> [docs/PHASE-5-HANDOFF.md](docs/PHASE-5-HANDOFF.md)).
+
+### MSFS 2020 integration
+
+`integrations/msfs2020` is the MSFS 2020 support used by whichever app variant
+needs in-simulator weather. It is **not** a .NET project: the panel is HTML, CSS
+and JavaScript loaded by the simulator, packaged by the Python and PowerShell
+tools in `integrations/msfs2020/tools`. It therefore cannot be referenced with
+`dotnet add reference`, and it is surfaced in `MetarViewer.sln` as a solution
+folder so it is visible in IDEs.
+
+Note that `integrations/msfs2020/PackageSources/.../metar-core.js` is a **separate
+JavaScript implementation** of the decoding logic, because the simulator panel
+cannot load .NET assemblies. Behavioural fixes made in `MetarViewer.Core` must be
+mirrored there by hand.
 
 ### Desktop app: local .NET SDK setup
+
 
 `global.json` pins the SDK to `8.0.418` with `rollForward: latestFeature`, which
 only ever resolves to an `8.0.4xx` SDK. If your system-wide `dotnet` is a

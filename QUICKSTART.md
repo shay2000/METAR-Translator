@@ -43,11 +43,57 @@ Do not copy the repository into Community. Files such as `MetarViewerToolbar.xml
 
 If this repository's GitHub Actions workflow is enabled, open **Actions → Build MSFS 2020 Community Package**, choose **Run workflow**, and download the ZIP from the completed run's **Artifacts** section. A tag such as `msfs-v1.0.0` publishes the same ZIP as a GitHub Release asset. If the hosted build fails while running `fspackagetool.exe`, use a Windows machine with the MSFS 2020 SDK and Node.js, then follow [integrations/msfs2020/README.md](integrations/msfs2020/README.md).
 
+## Desktop apps: build and run
+
+The desktop variants are no longer separate branches. They are sibling projects in
+`MetarViewer.sln`, so one checkout builds whichever one you need:
+
+| Project | Platforms | Use it for |
+| --- | --- | --- |
+| `src/MetarViewer.App.Avalonia` | macOS, Linux, Windows | The cross-platform desktop app. This is what ships as the Windows `.exe` and the macOS `.dmg`. |
+| `src/MetarViewer.App.WinUI` | Windows only | A Windows-native WinUI 3 UI, kept from the old `Windows-Version` branch. |
+| `src/MetarViewer.Core` | any | Shared parsing/models/services. Referenced by both apps; contains no UI code. |
+| `integrations/msfs2020` | MSFS 2020 | The in-game toolbar panel described above. |
+
+Run the cross-platform app on any OS:
+
+```bash
+dotnet build src/MetarViewer.App.Avalonia
+dotnet run --project src/MetarViewer.App.Avalonia
+```
+
+Run the Windows-native app (**from Windows only**):
+
+```bash
+dotnet build src/MetarViewer.App.WinUI
+dotnet run --project src/MetarViewer.App.WinUI
+```
+
+Build everything and run the tests:
+
+```bash
+dotnet build MetarViewer.sln
+dotnet test MetarViewer.sln
+```
+
+On macOS and Linux the solution build intentionally skips
+`MetarViewer.App.WinUI`, because WinUI 3 targets Windows only. Building that one
+project directly on a non-Windows machine fails with `NETSDK1100`; that is
+expected and does not indicate a broken checkout.
+
+If `dotnet` cannot resolve the SDK pinned in `global.json`, run
+`./scripts/bootstrap-dotnet.sh` once. See the README for details.
+
+`integrations/msfs2020` is used by whichever variant needs MSFS 2020 support. It
+is not a .NET project — the panel is HTML/JavaScript loaded by the simulator — so
+it is built with the packaging tools above rather than with `dotnet`.
+
 ## Remove or update
 
 1. Close MSFS 2020.
 2. Delete or replace `Community\metar-viewer-toolbar`.
 3. Restart the simulator.
+
 
 ## Troubleshooting
 
