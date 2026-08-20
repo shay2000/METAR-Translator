@@ -2,12 +2,13 @@
 setlocal EnableExtensions
 
 set "INTEGRATION_ROOT=%~dp0"
-set "PROJECT_FILE=%INTEGRATION_ROOT%MetarViewerToolbar.xml"
-set "SOURCE_VALIDATOR=%INTEGRATION_ROOT%tools\validate-source.mjs"
-set "PACKAGE_VALIDATOR=%INTEGRATION_ROOT%tools\validate-package.mjs"
-set "ZIP_CREATOR=%INTEGRATION_ROOT%tools\create-package-zip.ps1"
-set "PACKAGE_OUTPUT=%INTEGRATION_ROOT%Packages\metar-viewer-toolbar"
-set "PACKAGE_ZIP=%INTEGRATION_ROOT%Packages\metar-viewer-toolbar.zip"
+set "INTEGRATION_ROOT=%INTEGRATION_ROOT:~0,-1%"
+set "PROJECT_FILE=%INTEGRATION_ROOT%\MetarViewerToolbar.xml"
+set "SOURCE_VALIDATOR=%INTEGRATION_ROOT%\tools\validate-source.mjs"
+set "PACKAGE_VALIDATOR=%INTEGRATION_ROOT%\tools\validate-package.mjs"
+set "ZIP_CREATOR=%INTEGRATION_ROOT%\tools\create-package-zip.ps1"
+set "PACKAGE_OUTPUT=%INTEGRATION_ROOT%\Packages\metar-viewer-toolbar"
+set "PACKAGE_ZIP=%INTEGRATION_ROOT%\Packages\metar-viewer-toolbar.zip"
 
 if not "%~1"=="" set "MSFS_SDK=%~1"
 

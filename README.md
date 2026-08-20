@@ -87,6 +87,49 @@ extract it on your Windows MSFS machine.
 
 The `src/` and `tests/` directories also contain the separate METAR Viewer desktop application and its tests. They are not required to install or run the MSFS 2020 toolbar panel.
 
+### Desktop app: local .NET SDK setup
+
+`global.json` pins the SDK to `8.0.418` with `rollForward: latestFeature`, which
+only ever resolves to an `8.0.4xx` SDK. If your system-wide `dotnet` is a
+different major version, any command against the solution fails with a
+misleading error that looks like a broken solution file:
+
+```text
+The application 'sln' does not exist or is not a managed .dll or .exe
+A compatible .NET SDK was not found.
+Requested SDK version: 8.0.418
+```
+
+The solution file is fine; the SDK simply cannot be resolved. Install the pinned
+SDK into the gitignored `./.dotnet` directory:
+
+```bash
+./scripts/bootstrap-dotnet.sh
+```
+
+The script reads the version from `global.json`, is safe to re-run, and does not
+touch your system-wide .NET installation. `.vscode/settings.json` already points
+the C# extension and integrated terminal at `./.dotnet`, so **reload the VS Code
+window** afterwards ("Developer: Reload Window") for new terminals to pick it up.
+
+From an external terminal, either call `./.dotnet/dotnet` directly or export:
+
+```bash
+export DOTNET_ROOT="$PWD/.dotnet"
+export PATH="$DOTNET_ROOT:$PATH"
+```
+
+Then build and test as usual:
+
+```bash
+dotnet build MetarViewer.sln
+dotnet test MetarViewer.sln
+```
+
+Alternatively, installing the .NET 8 SDK system-wide satisfies the pin without
+the bootstrap step. CI needs none of this: the workflows use
+`actions/setup-dotnet` with `dotnet-version: 8.0.x`.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).
