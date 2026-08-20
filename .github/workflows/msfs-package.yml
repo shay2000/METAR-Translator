@@ -1,15 +1,18 @@
 name: Build MSFS 2020 Community Package
 
+# SDK-compiled validation build. This requires a Windows runner with the MSFS 2020
+# SDK and produces the authoritative package, but it cannot publish releases:
+# release publishing for msfs-v* tags is owned by msfs-release.yml so that only
+# one workflow ever writes the release asset.
+
 on:
   push:
     branches:
       - FlightSimIntegration
-    tags:
-      - "msfs-v*"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: msfs-package-${{ github.ref }}
@@ -89,29 +92,7 @@ jobs:
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: metar-viewer-msfs-2020-${{ github.sha }}
+          name: metar-viewer-msfs-2020-sdk-${{ github.sha }}
           path: integrations/msfs2020/Packages/metar-viewer-toolbar.zip
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish ZIP to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/msfs-v')
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          REPOSITORY: ${{ github.repository }}
-          ZIP_PATH: Packages/metar-viewer-toolbar.zip
-        run: |
-          $ErrorActionPreference = 'Stop'
-
-          if ($env:RELEASE_TAG -notmatch '^msfs-v\d+\.\d+\.\d+$') {
-            throw 'Release tags must use the format msfs-vMAJOR.MINOR.PATCH, for example msfs-v1.0.0.'
-          }
-
-          gh release view $env:RELEASE_TAG --repo $env:REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:RELEASE_TAG $env:ZIP_PATH --repo $env:REPOSITORY --clobber
-          } else {
-            gh release create $env:RELEASE_TAG $env:ZIP_PATH --repo $env:REPOSITORY --title "METAR Viewer for MSFS 2020 $env:RELEASE_TAG" --generate-notes --target $env:GITHUB_SHA
-          }

@@ -168,10 +168,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          # --latest=false keeps the Windows release track as the repository's
+          # "Latest" release, so the three tracks stay independent.
           if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$SOURCE_SHA" \
+              --latest=false \
               --title "METAR Viewer for Mac ${RELEASE_TAG#mac-v}" \
               --notes "macOS release of METAR Viewer. Choose Apple-Silicon for M-series Macs or Intel for Intel-based Macs. These builds use an ad-hoc signature; on first launch, Control-click the app and choose Open."
           fi

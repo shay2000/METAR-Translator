@@ -1,0 +1,135 @@
+name: Publish MSFS 2020 Release
+
+# Publishes the Community-folder ZIP as its own GitHub release, separate from the
+# Windows (v*) and macOS (mac-v*) release tracks.
+#
+# This job builds the package with the portable, SDK-free packager so it can run
+# on a hosted Linux runner. The SDK-compiled build lives in msfs-package.yml and
+# requires a Windows runner with the MSFS 2020 SDK; that workflow only validates
+# the sources and never publishes, so this workflow is the sole owner of the
+# msfs-v* release assets.
+
+on:
+  push:
+    tags:
+      - "msfs-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "MSFS release tag, for example msfs-v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: msfs-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish MSFS package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: release
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            TAG="$DISPATCH_TAG"
+          else
+            TAG="$GITHUB_REF_NAME"
+          fi
+
+          if [[ ! "$TAG" =~ ^msfs-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "MSFS release tags must match msfs-vMAJOR.MINOR.PATCH, for example msfs-v1.0.0." >&2
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#msfs-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run panel tests
+        working-directory: integrations/msfs2020
+        run: node --test
+
+      - name: Validate package source
+        working-directory: integrations/msfs2020
+        run: node tools/validate-source.mjs .
+
+      - name: Build Community package ZIP
+        run: python3 integrations/msfs2020/tools/build-community-package.py
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metar-viewer-msfs-2020-${{ steps.release.outputs.version }}
+          path: builds/metar-viewer-toolbar.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write release notes
+        run: |
+          mkdir -p builds
+          cat > builds/release-notes.md <<'NOTES'
+          Microsoft Flight Simulator 2020 toolbar panel for METAR Viewer.
+
+          ## Install
+
+          1. Close MSFS 2020.
+          2. Extract `metar-viewer-toolbar.zip` into your Community folder so that
+             `Community/metar-viewer-toolbar/manifest.json` exists.
+          3. Start MSFS 2020, begin a flight, and open **METAR Viewer** from the
+             toolbar. The icon may be in the toolbar overflow menu.
+
+          Do not nest the package inside an extra folder, and do not copy the
+          repository sources into Community.
+
+          ## Notes
+
+          - Simulation use only. Never use this for real-world aviation, flight
+            planning, navigation, or weather decisions.
+          - This package was built without the MSFS 2020 SDK, so the toolbar
+            registration ships as XML under the `.spb` name the simulator expects.
+            Confirm the toolbar loads in your own simulator before relying on it.
+          NOTES
+
+      - name: Create or update the MSFS release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # --latest=false keeps the Windows release track as the repository's
+          # "Latest" release, so the three tracks stay independent.
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --latest=false \
+              --title "METAR Viewer for MSFS 2020 $VERSION" \
+              --notes-file builds/release-notes.md
+          fi
+
+          gh release upload "$RELEASE_TAG" builds/metar-viewer-toolbar.zip \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"

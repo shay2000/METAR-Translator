@@ -6,11 +6,11 @@ The panel uses the simulator's METAR first, falls back to VATSIM when needed, an
 
 > **Simulation use only.** This project is for flight simulation and hobby use. Never use it for real-world aviation, flight planning, navigation, or weather decisions.
 
-> **Source checkout notice:** this branch contains the package source, not a ready-to-install ZIP. The MSFS SDK must generate the compiled `.spb`, `manifest.json`, and `layout.json` before an installable package exists.
+> **Source checkout notice:** this branch contains the package source, not a ready-to-install ZIP. A packaged ZIP has to be generated first, either by the MSFS 2020 SDK or by the portable packager described in [Build from source](#build-from-source).
 
 ## Install it like an MSFS mod
 
-Download a packaged release ZIP from the [METAR Translator Flightsim.to page](https://flightsim.to/addon/106602/metar-translator) or a project release. A source checkout is not itself installable because the toolbar registration XML must be compiled into an `.spb` file by the MSFS 2020 SDK.
+Download a packaged release ZIP from the [MSFS 2020 releases](../../releases?q=msfs-v) (tags starting with `msfs-v`) or the [METAR Translator Flightsim.to page](https://flightsim.to/addon/106602/metar-translator). A source checkout is not itself installable, because `manifest.json`, `layout.json`, and the toolbar registration must be generated before the simulator will load the package.
 
 1. Close Microsoft Flight Simulator 2020 completely.
 2. Open the Community folder used by your installation. The safest method, if you do not already know the path, is to start MSFS, use **Developer Mode → Tools → Virtual File System → Packages Folders → Open Community Folder**, then close MSFS again before copying the package. Alternatively, find `InstalledPackagesPath` in `UserCfg.opt` and open its `Community` subfolder. Do not use `Official`.
@@ -66,9 +66,22 @@ Close MSFS, then delete or replace only the `Community\metar-viewer-toolbar` fol
 
 ## Build from source
 
-The MSFS integration lives under [`integrations/msfs2020`](integrations/msfs2020). Building requires Windows, the current MSFS 2020 SDK, and Node.js. The build validates the source, compiles the panel registration, validates the generated package, and creates a standard Community-folder ZIP.
+The MSFS integration lives under [`integrations/msfs2020`](integrations/msfs2020). There are two ways to produce an installable ZIP.
 
-Portable tests can be run from that directory with:
+**SDK build (authoritative).** Requires Windows, the current MSFS 2020 SDK, and Node.js. It validates the source, compiles the panel registration into a real `.spb`, validates the generated package, and writes the ZIP to `integrations/msfs2020/Packages/`.
+
+**Portable build (no SDK).** Runs anywhere Python 3.9+ is available, including macOS and Linux, and writes the ZIP to `builds/`:
+
+```bash
+python3 integrations/msfs2020/tools/build-community-package.py
+```
+
+This generates `manifest.json` and `layout.json` itself and ships the toolbar
+registration as XML under the `.spb` filename, which the simulator's loader
+generally accepts. It is the quickest path to a ZIP you can drop into Community,
+but the SDK build remains the authoritative one.
+
+Portable tests can be run from `integrations/msfs2020` with:
 
 ```text
 node --test
@@ -77,11 +90,24 @@ node tools\validate-source.mjs .
 
 See [integrations/msfs2020/README.md](integrations/msfs2020/README.md) for the complete maintainer/build workflow.
 
-For convenience, `.github/workflows/msfs-package.yml` can build the ZIP on a
-GitHub-hosted Windows runner and upload it as a workflow artifact. Pushing a tag
-such as `msfs-v1.0.0` also publishes the ZIP to a GitHub Release. The workflow
-does not install anything into your local Community folder; download the ZIP and
-extract it on your Windows MSFS machine.
+## Releases
+
+The three platforms are released independently, each on its own tag prefix, so
+publishing one never disturbs the others:
+
+| Platform | Tag prefix | Workflow | Asset |
+| --- | --- | --- | --- |
+| Windows desktop app | `v1.2.3` | `release.yml` | Windows build |
+| macOS desktop app | `mac-v1.2.3` | `mac-release.yml` | `.dmg` for arm64 and x64 |
+| MSFS 2020 package | `msfs-v1.2.3` | `msfs-release.yml` | `metar-viewer-toolbar.zip` |
+
+Pushing a matching tag builds and publishes that platform only. The Windows
+track stays the repository's "Latest" release; the Mac and MSFS releases are
+marked as not-latest so they sit alongside it.
+
+`msfs-package.yml` still runs the Windows/SDK build on pushes to the integration
+branch for validation, but it no longer publishes releases, so only one workflow
+ever writes a release asset.
 
 ## Repository note
 
