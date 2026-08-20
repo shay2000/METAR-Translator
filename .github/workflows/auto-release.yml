@@ -1,12 +1,20 @@
 name: Auto Release on Main Push
 
+# Tagging is what actually publishes a release (release.yml triggers on `v*`), so
+# documentation-only and CI-only pushes are excluded: they must not ship a build.
 on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/**"
+      - "LICENSE"
 
 permissions:
   contents: write
+
 
 jobs:
   auto-release:
@@ -17,31 +25,41 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for tags
 
+      # Use the HIGHEST existing v* tag, not `git describe`. `git describe` only sees
+      # tags reachable from HEAD, so after the branch consolidation it returned v1.0.2
+      # while v1.0.6 already existed, and every run then died on
+      # "fatal: tag 'v1.0.3' already exists".
       - name: Get latest tag
         id: get_tag
         run: |
-          LATEST_TAG=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
+          LATEST_TAG=${LATEST_TAG:-v0.0.0}
+          echo "Highest existing tag: $LATEST_TAG"
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Generate next version
         id: generate_tag
         run: |
-          LATEST=${{ steps.get_tag.outputs.latest_tag }}
-          # Remove 'v' prefix for version math
+          LATEST="${{ steps.get_tag.outputs.latest_tag }}"
           VERSION=${LATEST#v}
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          
-          # Increment patch version
+
+          # Skip any patch numbers already taken, so a pre-existing tag can never
+          # fail the run.
           NEW_PATCH=$((PATCH + 1))
+          while git rev-parse -q --verify "refs/tags/v${MAJOR}.${MINOR}.${NEW_PATCH}" >/dev/null; do
+            NEW_PATCH=$((NEW_PATCH + 1))
+          done
+
           NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
-          
           echo "Current: $LATEST => Next: $NEW_VERSION"
-          echo "tag=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create and push tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ steps.generate_tag.outputs.tag }}
-          git push origin ${{ steps.generate_tag.outputs.tag }}
+          git tag "${{ steps.generate_tag.outputs.tag }}"
+          git push origin "${{ steps.generate_tag.outputs.tag }}"
           echo "Created tag: ${{ steps.generate_tag.outputs.tag }}"
+

@@ -3,7 +3,8 @@ name: Build macOS Release
 on:
   push:
     branches:
-      - Mac-Version
+      # All versions now live on main; Mac-Version is a historical backup.
+      - main
     tags:
       - "mac-v*"
     paths:
@@ -24,7 +25,7 @@ on:
 
 concurrency:
   group: macos-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref == 'refs/heads/Mac-Version' }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -43,7 +44,7 @@ jobs:
       - name: Check out Mac source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'Mac-Version' || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
           fetch-depth: 0
 
       - name: Resolve build version
@@ -76,10 +77,10 @@ jobs:
               git checkout --detach "$TAG"
             fi
 
-            git fetch origin Mac-Version
+            git fetch origin main
             SOURCE_SHA="$(git rev-parse HEAD)"
-            git merge-base --is-ancestor "$SOURCE_SHA" origin/Mac-Version || {
-              echo "Mac releases must point to a commit on Mac-Version." >&2
+            git merge-base --is-ancestor "$SOURCE_SHA" origin/main || {
+              echo "Mac releases must point to a commit on main." >&2
               exit 1
             }
           else

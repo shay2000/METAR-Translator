@@ -3,7 +3,8 @@ name: Validate MSFS 2020 Integration
 on:
   push:
     branches:
-      - FlightSimIntegration
+      # All versions now live on main; FlightSimIntegration is a historical backup.
+      - main
     paths:
       - ".github/workflows/msfs-integration.yml"
       - "integrations/msfs2020/**"
