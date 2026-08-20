@@ -69,6 +69,66 @@ public class AirportLookupServiceTests
     }
 
     [Fact]
+    public async Task ResolveAirportAsync_DirectLookupNoContentFallsBackToCodeSearch()
+    {
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            return request.RequestUri?.ToString() switch
+            {
+                "https://airportsapi.com/api/airports/LHR" => new HttpResponseMessage(HttpStatusCode.NoContent),
+                "https://airportsapi.com/api/airports?filter%5Bcode%5D=LHR&sort=name&include=country%2Cregion&page%5Bsize%5D=20"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))),
+                _ => throw new Xunit.Sdk.XunitException($"Unexpected request URI: {request.RequestUri}")
+            };
+        });
+        var service = CreateService(handler);
+
+        var result = await service.ResolveAirportAsync("LHR");
+
+        Assert.Equal("EGLL", result);
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ResolveAirportAsync_SearchNoContentContinuesToNameSearch()
+    {
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            return request.RequestUri?.ToString() switch
+            {
+                "https://airportsapi.com/api/airports/LHR" => new HttpResponseMessage(HttpStatusCode.NotFound),
+                "https://airportsapi.com/api/airports?filter%5Bcode%5D=LHR&sort=name&include=country%2Cregion&page%5Bsize%5D=20"
+                    => new HttpResponseMessage(HttpStatusCode.NoContent),
+                "https://airportsapi.com/api/airports?filter%5Bname%5D=LHR&sort=name&include=country%2Cregion&page%5Bsize%5D=20"
+                    => CreateJsonResponse(CreateSearchResponse(
+                        CreateAirportResource("EGLL", "London Heathrow Airport", "large_airport", "LHR"))),
+                _ => throw new Xunit.Sdk.XunitException($"Unexpected request URI: {request.RequestUri}")
+            };
+        });
+        var service = CreateService(handler);
+
+        var result = await service.ResolveAirportAsync("LHR");
+
+        Assert.Equal("EGLL", result);
+        Assert.Equal(3, handler.CallCount);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task ResolveAirportAsync_ApiFailureStopsFallbackRequests(HttpStatusCode statusCode)
+    {
+        using var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(statusCode));
+        var service = CreateService(handler);
+
+        var result = await service.ResolveAirportAsync("EGLL");
+
+        Assert.Equal("EGLL", result);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
     public async Task ResolveAirportDetailsAsync_TypoUsesRelaxedNameSearchAndReturnsClosestAirport()
     {
         using var handler = new StubHttpMessageHandler(request =>

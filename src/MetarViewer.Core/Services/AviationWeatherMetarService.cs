@@ -134,7 +134,7 @@ public sealed class AviationWeatherMetarService : IMetarService
         }
 
         // Extract weather phenomena from various fields
-        foreach (var weatherCode in ExtractWeatherPhenomena(response))
+        foreach (var weatherCode in ExtractWeatherPhenomena(response, fallbackStationId))
         {
             metarData.WeatherPhenomena.Add(weatherCode);
         }
@@ -180,21 +180,32 @@ public sealed class AviationWeatherMetarService : IMetarService
     /// <summary>
     /// Extracts weather phenomena codes (like RA, SN, FG) from the weather string and raw METAR.
     /// </summary>
-    private static IEnumerable<string> ExtractWeatherPhenomena(AviationWeatherMetarResponse response)
+    private static IEnumerable<string> ExtractWeatherPhenomena(
+        AviationWeatherMetarResponse response,
+        string fallbackStationId)
     {
-        var source = string.IsNullOrWhiteSpace(response.WeatherString)
-            ? response.RawObservation
-            : response.WeatherString;
+        if (!string.IsNullOrWhiteSpace(response.WeatherString))
+        {
+            return response.WeatherString
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(token => token.Trim().ToUpperInvariant())
+                .Where(MetarTokenClassifier.LooksLikeWeatherToken)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
 
-        if (string.IsNullOrWhiteSpace(source))
+        if (string.IsNullOrWhiteSpace(response.RawObservation))
         {
             return [];
         }
 
-        return source
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(token => token.Trim().ToUpperInvariant())
-            .Where(MetarTokenClassifier.LooksLikeWeatherToken)
+        // A raw report contains structural tokens, station identifiers, remarks and possibly a
+        // forecast trend. Parsing it contextually avoids classifying an ICAO such as KBRL as mist
+        // merely because it contains "BR", and stops forecast weather from becoming current
+        // weather.
+        return RawMetarParser
+            .Parse(response.RawObservation, response.IcaoId ?? fallbackStationId)
+            .WeatherPhenomena
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }

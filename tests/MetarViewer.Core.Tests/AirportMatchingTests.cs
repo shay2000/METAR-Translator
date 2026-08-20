@@ -92,6 +92,26 @@ public class AirportMatchingTests
     }
 
     [Fact]
+    public void Score_UnrelatedAirportCannotResolveOnTypeAndIataPriorsAlone()
+    {
+        var unrelated = CreateAirport("Alpha International Airport", "KAAA", "large_airport", "AAA");
+
+        var score = AirportMatchScorer.Score(unrelated, "Heatrow", "HEATROW");
+
+        Assert.True(score < AirportMatchScorer.MinimumResolutionScore);
+    }
+
+    [Fact]
+    public void Score_RelevantTypoStillMeetsTheResolutionThreshold()
+    {
+        var relevant = CreateAirport("London Heathrow Airport", "EGLL", "large_airport", "LHR");
+
+        var score = AirportMatchScorer.Score(relevant, "Heatrow", "HEATROW");
+
+        Assert.True(score >= AirportMatchScorer.MinimumResolutionScore);
+    }
+
+    [Fact]
     public void Score_RanksAnExactCodeMatchAboveAnExactNameMatch()
     {
         // Codes are unique, so typing one is a clearer statement of intent than typing a name

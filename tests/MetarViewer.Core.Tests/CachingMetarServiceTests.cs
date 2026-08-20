@@ -108,6 +108,43 @@ public class CachingMetarServiceTests
         Assert.Equal(2, created);
     }
 
+    [Fact]
+    public async Task GetMetarAsync_ConcurrentLookupsShareOneUpstreamRequest()
+    {
+        var inner = new DeferredMetarService();
+        var service = new CachingMetarService(inner);
+
+        var firstLookup = service.GetMetarAsync("EGLL");
+        var secondLookup = service.GetMetarAsync(" egll ");
+
+        Assert.Equal(1, inner.CallCount);
+
+        inner.Complete(new MetarData { StationId = "EGLL" });
+
+        var results = await Task.WhenAll(firstLookup, secondLookup);
+        Assert.All(results, result => Assert.Equal("EGLL", result!.StationId));
+        Assert.Equal(1, inner.CallCount);
+    }
+
+    [Fact]
+    public async Task GetMetarAsync_CancelingOneWaiterDoesNotCancelTheSharedRequest()
+    {
+        var inner = new DeferredMetarService();
+        var service = new CachingMetarService(inner);
+        using var cancellation = new CancellationTokenSource();
+
+        var canceledLookup = service.GetMetarAsync("EGLL", cancellation.Token);
+        var survivingLookup = service.GetMetarAsync("EGLL");
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceledLookup);
+
+        inner.Complete(new MetarData { StationId = "EGLL" });
+
+        Assert.Equal("EGLL", (await survivingLookup)!.StationId);
+        Assert.Equal(1, inner.CallCount);
+    }
+
     private sealed class CountingMetarService : IMetarService
     {
         private readonly Func<string, MetarData?> _resultFactory;
@@ -124,6 +161,23 @@ public class CachingMetarServiceTests
             CallCount++;
             return Task.FromResult(_resultFactory(stationId));
         }
+    }
+
+    private sealed class DeferredMetarService : IMetarService
+    {
+        private readonly TaskCompletionSource<MetarData?> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _callCount;
+
+        public int CallCount => _callCount;
+
+        public Task<MetarData?> GetMetarAsync(string stationId, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _callCount);
+            return _completion.Task;
+        }
+
+        public void Complete(MetarData? result) => _completion.SetResult(result);
     }
 
     /// <summary>

@@ -15,6 +15,8 @@ public partial class MainViewModel : ObservableObject
     private readonly IMetarService _metarService;
     private readonly IAirportLookupService _airportLookupService;
     private AirportSuggestion? _selectedAirportSuggestion;
+    private int _suggestionGeneration;
+    private string? _submittedSearchText;
 
     /// <summary>
     /// The text entered in the search box.
@@ -45,6 +47,13 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private MetarData? _currentMetar;
+
+    /// <summary>
+    /// Airport name supplied by the lookup service when the weather provider does not include
+    /// one. This is kept outside <see cref="MetarData"/> so cached reports remain unchanged.
+    /// </summary>
+    [ObservableProperty]
+    private string? _resolvedStationName;
 
     // Decoded property fields for UI binding
     [ObservableProperty]
@@ -112,9 +121,9 @@ public partial class MainViewModel : ObservableObject
     public string StationHeaderText =>
         CurrentMetar is null
             ? string.Empty
-            : string.IsNullOrWhiteSpace(CurrentMetar.StationName)
+            : string.IsNullOrWhiteSpace(CurrentMetar.StationName) && string.IsNullOrWhiteSpace(ResolvedStationName)
                 ? CurrentMetar.StationId
-                : $"{CurrentMetar.StationId} - {CurrentMetar.StationName}";
+                : $"{CurrentMetar.StationId} - {GetStationDisplayName()}";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
@@ -130,6 +139,13 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     partial void OnSearchTextChanged(string value)
     {
+        Interlocked.Increment(ref _suggestionGeneration);
+
+        if (!string.Equals(value.Trim(), _submittedSearchText, StringComparison.OrdinalIgnoreCase))
+        {
+            _submittedSearchText = null;
+        }
+
         if (_selectedAirportSuggestion != null &&
             !string.Equals(value.Trim(), _selectedAirportSuggestion.DisplayText, StringComparison.OrdinalIgnoreCase))
         {
@@ -147,6 +163,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ObservationTimeText));
         OnPropertyChanged(nameof(StationHeaderText));
     }
+    partial void OnResolvedStationNameChanged(string? value) => OnPropertyChanged(nameof(StationHeaderText));
     partial void OnIsDarkThemeChanged(bool value)
     {
         OnPropertyChanged(nameof(ThemeToggleGlyph));
@@ -157,7 +174,7 @@ public partial class MainViewModel : ObservableObject
     /// Asynchronously fetches and decodes the METAR for the current search text.
     /// </summary>
     [RelayCommand]
-    private async Task FetchMetarAsync()
+    private async Task FetchMetarAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(SearchText))
         {
@@ -165,16 +182,19 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        var submittedSearchText = SearchText.Trim();
+        _submittedSearchText = submittedSearchText;
         IsLoading = true;
         ErrorMessage = null;
         CurrentMetar = null;
+        ResolvedStationName = null;
         ClearAirportSuggestions();
 
         try
         {
             // Resolve input to an airport
             var resolvedAirport = GetSelectedAirportResolution()
-                ?? await _airportLookupService.ResolveAirportDetailsAsync(SearchText);
+                ?? await _airportLookupService.ResolveAirportDetailsAsync(SearchText, cancellationToken);
 
             if (resolvedAirport == null)
             {
@@ -183,7 +203,7 @@ public partial class MainViewModel : ObservableObject
             }
 
             // Fetch the METAR data
-            var metar = await _metarService.GetMetarAsync(resolvedAirport.StationId);
+            var metar = await _metarService.GetMetarAsync(resolvedAirport.StationId, cancellationToken);
 
             if (metar == null)
             {
@@ -191,17 +211,23 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            // Mix in the resolved airport name if the service didn't provide one
-            if (!string.IsNullOrWhiteSpace(resolvedAirport.DisplayName))
+            if (!string.Equals(SearchText.Trim(), submittedSearchText, StringComparison.OrdinalIgnoreCase))
             {
-                metar.StationName = resolvedAirport.DisplayName;
+                // The user moved on while the network request was in flight.
+                return;
             }
 
+            // Keep lookup metadata separate so a report shared by the cache is never mutated.
+            ResolvedStationName = resolvedAirport.DisplayName;
             CurrentMetar = metar;
             DecodeMetar(metar);
 
             // Remember for next launch
             SaveLastStation(resolvedAirport.StationId);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A canceled command is an expected outcome when the app closes.
         }
         catch (Exception ex)
         {
@@ -209,6 +235,11 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
+            if (string.Equals(SearchText.Trim(), submittedSearchText, StringComparison.OrdinalIgnoreCase))
+            {
+                ClearAirportSuggestions();
+            }
+
             IsLoading = false;
         }
     }
@@ -231,7 +262,7 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrEmpty(lastStation))
         {
             SearchText = lastStation;
-            await FetchMetarAsync();
+            await FetchMetarAsync(CancellationToken.None);
         }
     }
 
@@ -240,15 +271,27 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task UpdateAirportSuggestionsAsync(string input, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(input) || input.Trim().Length < 2)
+        var trimmedInput = input.Trim();
+        if (trimmedInput.Length < 2 ||
+            IsSelectedAirportText(trimmedInput) ||
+            IsSubmittedSearchText(trimmedInput))
         {
-            AirportSuggestions = Array.Empty<AirportSuggestion>();
+            ClearAirportSuggestions();
             return;
         }
 
+        var suggestionGeneration = _suggestionGeneration;
+
         try
         {
-            AirportSuggestions = await _airportLookupService.GetSuggestionsAsync(input, cancellationToken);
+            var suggestions = await _airportLookupService.GetSuggestionsAsync(trimmedInput, cancellationToken);
+
+            // Some transports cannot cancel an already-completed response. Only the result for
+            // the text still visible in the search box is allowed to update the interface.
+            if (suggestionGeneration == _suggestionGeneration && IsCurrentSuggestionInput(trimmedInput))
+            {
+                AirportSuggestions = suggestions;
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -256,7 +299,10 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            AirportSuggestions = Array.Empty<AirportSuggestion>();
+            if (suggestionGeneration == _suggestionGeneration && IsCurrentSuggestionInput(trimmedInput))
+            {
+                AirportSuggestions = Array.Empty<AirportSuggestion>();
+            }
         }
     }
 
@@ -267,7 +313,7 @@ public partial class MainViewModel : ObservableObject
     {
         _selectedAirportSuggestion = suggestion;
         SearchText = suggestion.DisplayText;
-        AirportSuggestions = Array.Empty<AirportSuggestion>();
+        ClearAirportSuggestions();
     }
 
     /// <summary>
@@ -275,6 +321,7 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public void ClearAirportSuggestions()
     {
+        Interlocked.Increment(ref _suggestionGeneration);
         AirportSuggestions = Array.Empty<AirportSuggestion>();
     }
 
@@ -336,4 +383,21 @@ public partial class MainViewModel : ObservableObject
                 _selectedAirportSuggestion.DisplayName,
                 _selectedAirportSuggestion.IataCode);
     }
+
+    private bool IsSelectedAirportText(string input) =>
+        _selectedAirportSuggestion is { } selected &&
+        string.Equals(input, selected.DisplayText, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsCurrentSuggestionInput(string input) =>
+        string.Equals(SearchText.Trim(), input, StringComparison.OrdinalIgnoreCase) &&
+        !IsSelectedAirportText(input) &&
+        !IsSubmittedSearchText(input);
+
+    private bool IsSubmittedSearchText(string input) =>
+        string.Equals(input, _submittedSearchText, StringComparison.OrdinalIgnoreCase);
+
+    private string GetStationDisplayName() =>
+        !string.IsNullOrWhiteSpace(CurrentMetar?.StationName)
+            ? CurrentMetar.StationName
+            : ResolvedStationName!;
 }

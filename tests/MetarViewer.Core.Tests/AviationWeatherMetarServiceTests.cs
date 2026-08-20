@@ -65,7 +65,7 @@ public class AviationWeatherMetarServiceTests
               {
                 "icaoId": "EGLL",
                 "reportTime": "2026-03-28T16:20:00.000Z",
-                "rawOb": "METAR EGLL 281620Z 32012KT 9999 SCT030 09/M02 Q1026 {{trendGroup}} 3000 BR",
+                "rawOb": "METAR EGLL 281620Z 32012KT 9999 -RA SCT030 09/M02 Q1026 {{trendGroup}} 3000 BR",
                 "clouds": []
               }
             ]
@@ -76,8 +76,29 @@ public class AviationWeatherMetarServiceTests
 
         Assert.NotNull(result);
         Assert.DoesNotContain(trendGroup, result!.WeatherPhenomena);
-        // Genuine weather in the same report is still recognised.
-        Assert.Contains("BR", result.WeatherPhenomena);
+        Assert.Contains("-RA", result.WeatherPhenomena);
+        Assert.DoesNotContain("BR", result.WeatherPhenomena);
+    }
+
+    [Fact]
+    public async Task GetMetarAsync_RawFallbackDoesNotClassifyStationCodeAsWeather()
+    {
+        using var handler = new StubHttpMessageHandler(_ => CreateJsonResponse("""
+            [
+              {
+                "icaoId": "KBRL",
+                "reportTime": "2026-03-28T16:20:00.000Z",
+                "rawOb": "METAR KBRL 281620Z 32012KT 10SM CLR 09/M02 A3026",
+                "clouds": []
+              }
+            ]
+            """));
+        var service = CreateService(handler);
+
+        var result = await service.GetMetarAsync("KBRL");
+
+        Assert.NotNull(result);
+        Assert.Empty(result!.WeatherPhenomena);
     }
 
     [Fact]

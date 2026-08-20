@@ -25,7 +25,12 @@ internal static class AirportMatchScorer
     /// The lowest score accepted when resolving to a single airport. Suggestions are offered
     /// below this, but a weak match is not silently treated as the answer.
     /// </summary>
-    public const int MinimumResolutionScore = 120;
+    /// <remarks>
+    /// Airport type and the presence of an IATA code are only tie-breakers. Their maximum combined
+    /// value is 130, so this threshold must stay above that: an unrelated large airport returned by
+    /// a broad fallback query must never be accepted on priors alone.
+    /// </remarks>
+    public const int MinimumResolutionScore = 140;
 
     // A code match is decisive: codes are unique, so an exact one outweighs any name scoring.
     private const int CodeMatchScore = 500;

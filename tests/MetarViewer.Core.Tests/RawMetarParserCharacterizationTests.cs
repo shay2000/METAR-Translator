@@ -152,14 +152,21 @@ public class RawMetarParserCharacterizationTests
         Assert.Empty(metar.WeatherPhenomena);
     }
 
-    [Fact]
-    public void Parse_TrendGroupTempo_IsNotMisreadAsWeatherPhenomenon()
+    [Theory]
+    [InlineData("TEMPO")]
+    [InlineData("BECMG")]
+    [InlineData("NOSIG")]
+    public void Parse_TrendSection_DoesNotOverwriteObservedConditions(string trendMarker)
     {
-        // "TEMPO" ends in "PO" (dust/sand whirls), so a naive substring check would
-        // classify the trend group as a weather phenomenon.
-        var metar = RawMetarParser.Parse("EGLL 151250Z 25012KT 9999 FEW035 12/08 Q1013 TEMPO 4000 RA", "EGLL");
+        var metar = RawMetarParser.Parse(
+            $"EGLL 151250Z 25012KT 9999 -RA FEW035 12/08 Q1013 {trendMarker} 0400 FG OVC001",
+            "EGLL");
 
-        Assert.DoesNotContain("TEMPO", metar.WeatherPhenomena);
+        Assert.Equal(10m, metar.Visibility);
+        Assert.Equal("km", metar.VisibilityUnit);
+        Assert.Equal(["-RA"], metar.WeatherPhenomena);
+        Assert.Equal(3500, Assert.Single(metar.CloudLayers).Altitude);
+        Assert.Equal("VFR", metar.FlightCategory);
     }
 
     [Fact]

@@ -72,10 +72,15 @@ internal sealed class AirportsApiClient : IAirportsApiClient
             .ConfigureAwait(false);
 
         // A code the API has never heard of is an ordinary outcome of a search, not a failure.
-        if (response.StatusCode == HttpStatusCode.NotFound || !response.IsSuccessStatusCode)
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
         {
             return null;
         }
+
+        // Rate limiting and server failures must stop the wider search. Treating them as an
+        // ordinary miss would make the candidate finder issue every fallback request against an
+        // already failing API.
+        response.EnsureSuccessStatusCode();
 
         var payload = await ReadAsync<SingleAirportResponse>(response, cancellationToken).ConfigureAwait(false);
         return payload?.Data?.Attributes;
@@ -89,10 +94,12 @@ internal sealed class AirportsApiClient : IAirportsApiClient
             .GetAsync($"{AirportsPath}?{BuildQueryString(query)}", cancellationToken)
             .ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
         {
             return Array.Empty<AirportAttributes>();
         }
+
+        response.EnsureSuccessStatusCode();
 
         var payload = await ReadAsync<AirportSearchResponse>(response, cancellationToken).ConfigureAwait(false);
         if (payload?.Data is not { Count: > 0 } airports)

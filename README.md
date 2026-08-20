@@ -2,7 +2,7 @@
 
 METAR Viewer is a native-feeling macOS desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format. This `Mac-Version` branch contains the cross-platform Avalonia UI and automated Mac packaging.
 
-![macOS](https://img.shields.io/badge/macOS-10.15%2B-black)
+![macOS](https://img.shields.io/badge/macOS-14%2B%20%7C%20Intel%20and%20Apple%20Silicon-black)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -33,7 +33,10 @@ METAR Viewer is a native-feeling macOS desktop app for searching airports and vi
 4. Open the `.dmg`, then drag **METAR Viewer** into the **Applications** shortcut.
 5. Start METAR Viewer from Applications.
 
-> **First launch:** Release builds are currently unsigned. If macOS blocks the app, Control-click it in Applications, choose **Open**, and confirm **Open**. Only do this for a download you trust from this repository.
+> **First launch:** CI builds are ad-hoc signed for bundle integrity, but they are not
+> Developer ID signed or notarized. If macOS blocks the app, Control-click it in
+> Applications, choose **Open**, and confirm **Open**. Only do this for a download
+> you trust from this repository.
 
 ## Alternative Download
 
@@ -68,7 +71,7 @@ The app can search by:
 
 - Confirm that you downloaded the correct Apple-Silicon or Intel `.dmg`
 - Move the app to Applications before launching it
-- For the unsigned build, Control-click the app and choose **Open** on first launch
+- For an ad-hoc signed build, Control-click the app and choose **Open** on first launch
 
 ### Could Not Retrieve METAR
 
@@ -92,7 +95,7 @@ Try:
 ## For Developers
 
 If you want to build the app locally, you will need:
-- macOS 10.15 or newer
+- macOS 14 or newer on Apple Silicon or Intel
 - .NET 8 SDK
 
 Build and run from the command line:
@@ -104,8 +107,21 @@ dotnet run --project src/MetarViewer.App/MetarViewer.App.csproj
 Run tests with:
 
 ```bash
-dotnet test tests/MetarViewer.Core.Tests/MetarViewer.Core.Tests.csproj
+dotnet test MetarViewer.sln
 ```
+
+Build an ad-hoc signed and verified DMG locally with:
+
+```bash
+scripts/package-macos.sh osx-arm64 1.0.0
+# Or, for an Intel Mac:
+scripts/package-macos.sh osx-x64 1.0.0
+```
+
+The DMG and its SHA-256 checksum are written under `artifacts/macos/<runtime>/`.
+The packaging script validates the bundle metadata, executable architecture and
+code signature, verifies the disk image, then mounts it read-only and validates
+the installed contents before returning success.
 
 The code is split into two projects. `MetarViewer.Core` holds the METAR parsing,
 decoding and web service code and targets plain `net8.0`, so its tests run on any
@@ -114,7 +130,12 @@ both Apple Silicon (`osx-arm64`) and Intel (`osx-x64`) Macs.
 
 ## Maintainer: Publishing a Mac Release
 
-Push a tag beginning with `mac-v` from a commit on the `Mac-Version` branch:
+Relevant pushes to `Mac-Version` run the **Build macOS Release** workflow and
+upload Apple Silicon and Intel DMGs as workflow artifacts retained for 30 days.
+Branch-push artifacts are development builds and do not create a GitHub Release.
+
+To publish permanent release assets, push a strict `mac-vX.Y.Z` tag from a commit
+on the `Mac-Version` branch:
 
 ```bash
 git switch Mac-Version
@@ -122,10 +143,10 @@ git tag mac-v1.0.0
 git push origin mac-v1.0.0
 ```
 
-The **Build macOS Release** GitHub Action tests the project, builds separate Apple
-Silicon and Intel application bundles, packages each as a `.dmg`, and creates an
-explicitly titled **METAR Viewer for Mac** entry under GitHub Releases. It can also
-be started manually from the Actions tab with a `mac-v…` tag.
+For a release tag, the workflow tests the whole solution, builds separate Apple
+Silicon and Intel application bundles, packages and verifies each `.dmg`, and
+creates an explicitly titled **METAR Viewer for Mac** entry under GitHub Releases.
+The release is created only after both architecture jobs succeed.
 
 ## Project Notes
 

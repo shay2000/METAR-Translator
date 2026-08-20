@@ -113,7 +113,7 @@ internal sealed class AirportCandidateFinder
         {
             return Array.Empty<AirportMatch>();
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return Array.Empty<AirportMatch>();
         }

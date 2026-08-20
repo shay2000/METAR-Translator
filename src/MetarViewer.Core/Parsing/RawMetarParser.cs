@@ -138,6 +138,15 @@ internal static partial class RawMetarParser
                 return;
             }
 
+            // BECMG, TEMPO and NOSIG introduce the trend forecast appended to some METARs.
+            // Those groups describe expected conditions, not the observation itself, so allowing
+            // the normal token parsers to continue would overwrite the current visibility,
+            // ceiling and weather with forecast values.
+            if (MetarTokenClassifier.IsTrendSectionStart(token))
+            {
+                return;
+            }
+
             if (token == CavokToken)
             {
                 metar.IsCavok = true;

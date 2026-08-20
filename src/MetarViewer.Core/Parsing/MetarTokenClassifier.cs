@@ -72,4 +72,10 @@ internal static class MetarTokenClassifier
     /// Determines whether a token is a report modifier such as "AUTO" or "COR".
     /// </summary>
     public static bool IsReportModifier(string token) => token is "AUTO" or "COR" or "AMD" or "RTD";
+
+    /// <summary>
+    /// Determines whether a token starts the forecast trend section appended to an observation.
+    /// Values after this marker must not be decoded as the current conditions.
+    /// </summary>
+    public static bool IsTrendSectionStart(string token) => token is "BECMG" or "TEMPO" or "NOSIG";
 }

@@ -173,6 +173,22 @@ public class AirportCandidateFinderTests
         Assert.Empty(await finder.FindAsync("Heathrow", "HEATHROW"));
     }
 
+    [Fact]
+    public async Task FindAsync_PropagatesCancellationRequestedByTheCaller()
+    {
+        using var cancellationSource = new CancellationTokenSource();
+        cancellationSource.Cancel();
+        var cancellation = new TaskCanceledException(
+            "cancelled by caller",
+            innerException: null,
+            cancellationSource.Token);
+        var apiClient = new StubAirportsApiClient { Failure = cancellation };
+        var finder = new AirportCandidateFinder(apiClient);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            finder.FindAsync("Heathrow", "HEATHROW", cancellationSource.Token));
+    }
+
     private static AirportAttributes CreateAirport(
         string name,
         string stationId,

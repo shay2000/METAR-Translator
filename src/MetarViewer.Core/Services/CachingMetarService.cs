@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MetarViewer.Models;
 
 namespace MetarViewer.Services;
@@ -22,6 +23,11 @@ public sealed class CachingMetarService : IMetarService
     // Guards _entries; lookups can be issued concurrently from the UI.
     private readonly Dictionary<string, CacheEntry> _entries = new(StringComparer.Ordinal);
     private readonly object _gate = new();
+
+    // A burst of requests for one station shares the same upstream lookup. Each caller can stop
+    // waiting independently without canceling the request another caller still needs.
+    private readonly ConcurrentDictionary<string, Lazy<Task<MetarData?>>> _inFlightRequests =
+        new(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CachingMetarService"/> class.
@@ -71,18 +77,50 @@ public sealed class CachingMetarService : IMetarService
             return cached;
         }
 
+        var candidate = new Lazy<Task<MetarData?>>(
+            () => FetchAndStoreAsync(normalizedStationId),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        var request = _inFlightRequests.GetOrAdd(normalizedStationId, candidate);
+        var requestTask = request.Value;
+
+        if (ReferenceEquals(request, candidate))
+        {
+            _ = requestTask.ContinueWith(
+                completedTask =>
+                {
+                    // Observe a fault even if every caller stopped waiting before it occurred.
+                    _ = completedTask.Exception;
+                    RemoveInFlightRequest(normalizedStationId, request);
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        return await requestTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<MetarData?> FetchAndStoreAsync(string stationId)
+    {
         var metar = await _innerFactory()
-            .GetMetarAsync(normalizedStationId, cancellationToken)
+            .GetMetarAsync(stationId, CancellationToken.None)
             .ConfigureAwait(false);
 
         // Only successful lookups are cached, so a transient failure does not mask a station
         // that starts reporting again moments later.
         if (metar != null)
         {
-            Store(normalizedStationId, metar);
+            Store(stationId, metar);
         }
 
         return metar;
+    }
+
+    private void RemoveInFlightRequest(string stationId, Lazy<Task<MetarData?>> request)
+    {
+        // Conditional removal avoids deleting a newer request for the same station.
+        ((ICollection<KeyValuePair<string, Lazy<Task<MetarData?>>>>)_inFlightRequests)
+            .Remove(new KeyValuePair<string, Lazy<Task<MetarData?>>>(stationId, request));
     }
 
     private bool TryGetCached(string stationId, out MetarData? metar)
