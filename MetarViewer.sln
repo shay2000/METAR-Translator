@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -7,18 +7,33 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DF95F2FE-03C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.Core", "src\MetarViewer.Core\MetarViewer.Core.csproj", "{CC9099DE-258B-4C90-B599-920952A01FB8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.App", "src\MetarViewer.App\MetarViewer.App.csproj", "{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.App.Avalonia", "src\MetarViewer.App.Avalonia\MetarViewer.App.Avalonia.csproj", "{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.App.WinUI", "src\MetarViewer.App.WinUI\MetarViewer.App.WinUI.csproj", "{88E9195D-EBEE-4CDC-9606-4CD225545460}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MetarViewer.Integrations", "MetarViewer.Integrations", "{58ED0E96-2107-4F34-9930-076FB76FD2D2}"
+	ProjectSection(SolutionItems) = preProject
+		integrations\msfs2020\README.md = integrations\msfs2020\README.md
+		integrations\msfs2020\build.bat = integrations\msfs2020\build.bat
+		integrations\msfs2020\tools\build-community-package.py = integrations\msfs2020\tools\build-community-package.py
+		integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\metar-core.js = integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\metar-core.js
+		integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\weather-service.js = integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\weather-service.js
+		integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\airport-service.js = integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\airport-service.js
+		integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\panel-app.js = integrations\msfs2020\PackageSources\html_ui\InGamePanels\MetarViewer\panel-app.js
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{924A7561-2859-4A92-B6D3-CC3477E532E3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.Core.Tests", "tests\MetarViewer.Core.Tests\MetarViewer.Core.Tests.csproj", "{CEB9C853-32DD-4D6B-824C-6497D357FAF4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.App.Tests", "tests\MetarViewer.App.Tests\MetarViewer.App.Tests.csproj", "{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetarViewer.App.Avalonia.Tests", "tests\MetarViewer.App.Avalonia.Tests\MetarViewer.App.Avalonia.Tests.csproj", "{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -28,22 +43,46 @@ Global
 		{CC9099DE-258B-4C90-B599-920952A01FB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CC9099DE-258B-4C90-B599-920952A01FB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CC9099DE-258B-4C90-B599-920952A01FB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC9099DE-258B-4C90-B599-920952A01FB8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CC9099DE-258B-4C90-B599-920952A01FB8}.Debug|x64.Build.0 = Debug|Any CPU
+		{CC9099DE-258B-4C90-B599-920952A01FB8}.Release|x64.ActiveCfg = Release|Any CPU
+		{CC9099DE-258B-4C90-B599-920952A01FB8}.Release|x64.Build.0 = Release|Any CPU
 		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Debug|x64.Build.0 = Debug|Any CPU
+		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Release|x64.ActiveCfg = Release|Any CPU
+		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9}.Release|x64.Build.0 = Release|Any CPU
+		{88E9195D-EBEE-4CDC-9606-4CD225545460}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{88E9195D-EBEE-4CDC-9606-4CD225545460}.Release|Any CPU.ActiveCfg = Release|x64
+		{88E9195D-EBEE-4CDC-9606-4CD225545460}.Debug|x64.ActiveCfg = Debug|x64
+		{88E9195D-EBEE-4CDC-9606-4CD225545460}.Debug|x64.Build.0 = Debug|x64
+		{88E9195D-EBEE-4CDC-9606-4CD225545460}.Release|x64.ActiveCfg = Release|x64
+		{88E9195D-EBEE-4CDC-9606-4CD225545460}.Release|x64.Build.0 = Release|x64
 		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Debug|x64.Build.0 = Debug|Any CPU
+		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Release|x64.ActiveCfg = Release|Any CPU
+		{CEB9C853-32DD-4D6B-824C-6497D357FAF4}.Release|x64.Build.0 = Release|Any CPU
 		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Debug|x64.Build.0 = Debug|Any CPU
+		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Release|x64.ActiveCfg = Release|Any CPU
+		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{CC9099DE-258B-4C90-B599-920952A01FB8} = {DF95F2FE-03C0-4625-BE19-5E16775D375C}
 		{CB8B8FE0-A4F0-4C22-8E2C-3889E4DEEDB9} = {DF95F2FE-03C0-4625-BE19-5E16775D375C}
+		{88E9195D-EBEE-4CDC-9606-4CD225545460} = {DF95F2FE-03C0-4625-BE19-5E16775D375C}
+		{58ED0E96-2107-4F34-9930-076FB76FD2D2} = {DF95F2FE-03C0-4625-BE19-5E16775D375C}
 		{CEB9C853-32DD-4D6B-824C-6497D357FAF4} = {924A7561-2859-4A92-B6D3-CC3477E532E3}
 		{8C22B10F-6EF2-42E4-9DFC-45E54C5117CB} = {924A7561-2859-4A92-B6D3-CC3477E532E3}
 	EndGlobalSection

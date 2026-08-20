@@ -4,7 +4,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>MetarViewer</RootNamespace>
     <AssemblyName>MetarViewer</AssemblyName>
-    <RuntimeIdentifiers>osx-x64;osx-arm64</RuntimeIdentifiers>
+    <!--
+      This is the cross-platform desktop UI (macOS, Linux and Windows). The Windows
+      RIDs matter: .github/workflows/release.yml publishes the shipping Windows .exe
+      from THIS project, not from MetarViewer.App.WinUI.
+    -->
+    <RuntimeIdentifiers>osx-x64;osx-arm64;win-x64;linux-x64</RuntimeIdentifiers>
+
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
