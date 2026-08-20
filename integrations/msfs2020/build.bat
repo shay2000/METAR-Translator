@@ -20,13 +20,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-for /f "tokens=1 delims=." %%V in ('"%NODE_EXE%" -p "process.versions.node" 2^>nul') do set "NODE_MAJOR=%%V"
-if not defined NODE_MAJOR (
-  echo ERROR: Could not determine the Node.js version.
-  exit /b 1
-)
-if %NODE_MAJOR% LSS 24 (
-  echo ERROR: Node.js 24 LTS or newer is required; found major version %NODE_MAJOR%.
+"%NODE_EXE%" -e "const version = process.versions.node; const major = Number(version.split('.')[0]); if (!(major >= 24)) { console.error('ERROR: Node.js 24 LTS or newer is required; found ' + version + '.'); process.exit(1); }"
+if errorlevel 1 (
   exit /b 1
 )
 
