@@ -116,7 +116,7 @@ jobs:
           # IncludeNativeLibrariesForSelfExtract is REQUIRED: Avalonia ships native
           # SkiaSharp/HarfBuzz libraries, and without it the single .exe fails to
           # start on a clean machine.
-          dotnet publish src/MetarViewer.App/MetarViewer.App.csproj \
+          dotnet publish src/MetarViewer.App.Avalonia/MetarViewer.App.Avalonia.csproj \
             --configuration Release \
             --runtime "${{ matrix.runtime }}" \
             --self-contained true \
