@@ -1,168 +1,84 @@
-# METAR Viewer
+# METAR Viewer for Microsoft Flight Simulator 2020
 
-METAR Viewer is a native-feeling macOS desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format. The repository also contains a separate self-contained Microsoft Flight Simulator 2020 toolbar-panel implementation.
+METAR Viewer is a PC-only Microsoft Flight Simulator 2020 Community package that adds a METAR panel to the in-game toolbar. It runs inside the simulator: no separate desktop app, background service, or custom installer is required.
 
-![macOS](https://img.shields.io/badge/macOS-14%2B%20%7C%20Intel%20and%20Apple%20Silicon-black)
-![.NET](https://img.shields.io/badge/.NET-8.0-purple)
-![License](https://img.shields.io/badge/license-MIT-green)
+The panel uses the simulator's METAR first, falls back to VATSIM when needed, and decodes the report locally. Airport search accepts ICAO codes, IATA codes, airport names, and common misspellings.
 
-## ⚠️ **Disclaimer:**  
+> **Simulation use only.** This project is for flight simulation and hobby use. Never use it for real-world aviation, flight planning, navigation, or weather decisions.
 
-- METAR Viewer is intended **for virtual simulation and hobbyist use only**.  
-- **Never use this application, or any information it provides, for real-world aviation, flight planning, or navigation purposes.**  
-- Always obtain official weather and briefing information from certified sources before conducting any real-world flight.
+## Install it like an MSFS mod
 
-## Features
+Download a packaged release ZIP from the [METAR Translator Flightsim.to page](https://flightsim.to/addon/106602/metar-translator) or a project release. A source checkout is not itself installable because the toolbar registration XML must be compiled into an `.spb` file by the MSFS 2020 SDK.
 
-- 🔍 **Flexible Airport Search**: Enter ICAO codes (e.g., EGLL), IATA codes (e.g., LHR), or airport names (e.g., "London Heathrow")
-- 📊 **Dual Display**: View both raw METAR data and human-readable decoded information
-- 🍎 **Mac Desktop App**: A responsive interface with native light and dark appearances
-- 🌓 **Theme Toggle**: Switch between light and dark modes with a single click
-- ⚡ **Smart Caching**: Automatic 60-second response caching to minimize API calls
-- 💾 **Session Persistence**: Remembers your last searched airport across app restarts
-- ✈️ **Flight Categories**: Clear visual indication of VFR, MVFR, IFR, and LIFR conditions
-- 📱 **Responsive Design**: Adaptive layout that works well on different screen sizes
-- 🛩️ **In-Game Toolbar Panel**: A separate MSFS 2020 Community package displays and decodes METARs without launching the desktop app
+1. Close Microsoft Flight Simulator 2020 completely.
+2. Open the Community folder used by your installation. The safest method, if you do not already know the path, is to start MSFS, use **Developer Mode → Tools → Virtual File System → Packages Folders → Open Community Folder**, then close MSFS again before copying the package. Alternatively, find `InstalledPackagesPath` in `UserCfg.opt` and open its `Community` subfolder. Do not use `Official`.
+3. Extract the release ZIP directly into the Community folder.
+4. Confirm that the package metadata is at the package root:
 
-## Download for Mac
+   ```text
+   Community\
+   └── metar-viewer-toolbar\
+       ├── manifest.json
+       ├── layout.json
+       ├── InGamePanels\
+       └── html_ui\
+   ```
 
-1. Open the [GitHub Releases page](https://github.com/shay2000/METAR-Translator/releases).
-2. Find the newest release titled **“METAR Viewer for Mac”** (its tag begins with `mac-v`).
-3. Download the `.dmg` that matches your Mac:
-   - **Apple-Silicon** for M1, M2, M3, M4, and newer Apple chips.
-   - **Intel** for older Intel-based Macs.
-4. Open the `.dmg`, then drag **METAR Viewer** into the **Applications** shortcut.
-5. Start METAR Viewer from Applications.
+   If the archive contains `metar-viewer-toolbar\metar-viewer-toolbar\...`, move the inner folder up one level. Do not copy the repository's `integrations\msfs2020` folder into Community.
 
-> **First launch:** CI builds are ad-hoc signed for bundle integrity, but they are not
-> Developer ID signed or notarized. If macOS blocks the app, Control-click it in
-> Applications, choose **Open**, and confirm **Open**. Only do this for a download
-> you trust from this repository.
+5. Start MSFS 2020, start a flight, and select the **METAR Viewer** icon from the toolbar. It may be in the toolbar overflow menu if you have many toolbar panels installed.
 
-## Alternative Download
+For a step-by-step version of this process, see [QUICKSTART.md](QUICKSTART.md). For building the package from source, see [the MSFS build guide](integrations/msfs2020/README.md).
 
-You can also download the Zip file from flightsim.to from this link: https://flightsim.to/addon/106602/metar-translator
+## What the panel does
 
-## Microsoft Flight Simulator 2020 Toolbar
+- Requests weather from the simulator's facility service first.
+- Uses the VATSIM METAR API as a fallback when the simulator has no report or the request fails.
+- Searches airports through AirportsAPI when you enter an airport name or IATA code.
+- Still accepts a direct four-letter ICAO code when airport search is unavailable.
+- Decodes wind, visibility, clouds, temperature, altimeter, weather, and flight category locally.
+- Caches successful weather results briefly to avoid repeated requests.
+- Remembers the last station when the simulator data-store is available.
 
-The [`FlightSimIntegration`](https://github.com/shay2000/METAR-Translator/tree/FlightSimIntegration) branch contains a native MSFS 2020 toolbar-panel port under `integrations/msfs2020`. It runs entirely inside the simulator's HTML/JavaScript UI, requests the simulator METAR first, and uses VATSIM as a fallback. No external METAR Viewer process is required while flying.
-
-The source and portable tests are complete, but the final panel-registration `.spb` must be compiled on Windows with the current MSFS 2020 SDK and validated in the simulator before release. See the [MSFS integration build and installation guide](integrations/msfs2020/README.md) for prerequisites, commands, and the in-simulator acceptance checklist.
-
-## How To Use
-
-1. Open the app.
-2. Type an airport code or name such as `EGLL`, `LHR`, or `London Heathrow`.
-3. Click `Get METAR` or press Enter.
-4. Read the decoded weather summary and raw METAR.
-
-The app can search by:
-- ICAO code
-- IATA code
-- Airport name
-- Close-match suggestions for minor typos
-
-## Features
-
-- Fast airport search with live suggestions
-- Raw and decoded METAR display
-- Flight category badge for quick reading
-- Altimeter shown in both `hPa` and `inHg`
-- Light and dark theme toggle
-- Airport lookup powered by AirportsAPI
-- VATSIM METAR as the primary weather source with Aviation Weather fallback
+An internet connection is needed for airport-name/IATA lookup and the VATSIM fallback. The simulator METAR path can still work without those services when MSFS has the report available.
 
 ## Troubleshooting
 
-### App Will Not Open
+### The icon does not appear
 
-- Confirm that you downloaded the correct Apple-Silicon or Intel `.dmg`
-- Move the app to Applications before launching it
-- For an ad-hoc signed build, Control-click the app and choose **Open** on first launch
+- Make sure MSFS was closed before you copied the package and restarted after installation.
+- Open the package folder and confirm that `manifest.json` and `layout.json` are directly inside `metar-viewer-toolbar`.
+- Make sure you copied the compiled package folder, not the repository or `PackageSources` folder.
+- Temporarily remove other in-game toolbar panel mods if the toolbar or panel system is unstable after a simulator update.
+- With Developer Mode enabled, check **Tools → Packages** to see whether `metar-viewer-toolbar` is detected.
 
-### Could Not Retrieve METAR
+### The panel opens but cannot find weather
 
-Possible causes:
-- The airport does not currently publish a METAR
-- Your internet connection is unavailable
-- The weather providers are temporarily unavailable
+- Try a direct ICAO code such as `EGLL`, `KJFK`, or `OMDB`.
+- Check your internet connection for airport search and VATSIM fallback.
+- Refresh the report after waiting a minute; public weather services can be temporarily unavailable.
 
-Try:
-- A major airport such as `EGLL`, `KJFK`, `LFPG`, or `OMDB`
-- Searching by ICAO instead of name
-- Waiting a minute and trying again
+### Remove or update it
 
-### Could Not Find Airport
+Close MSFS, then delete or replace only the `Community\metar-viewer-toolbar` folder. Do not edit `layout.json` or `manifest.json` inside a packaged release.
 
-Try:
-- The exact ICAO or IATA code
-- The airport's official name
-- A simpler search term with fewer words
+## Build from source
 
-## For Developers
+The MSFS integration lives under [`integrations/msfs2020`](integrations/msfs2020). Building requires Windows, the current MSFS 2020 SDK, and Node.js. The build validates the source, compiles the panel registration, validates the generated package, and creates a standard Community-folder ZIP.
 
-If you want to build the app locally, you will need:
-- macOS 14 or newer on Apple Silicon or Intel
-- .NET 8 SDK
+Portable tests can be run from that directory with:
 
-Build and run from the command line:
-
-```bash
-dotnet run --project src/MetarViewer.App/MetarViewer.App.csproj
+```text
+node --test
+node tools\validate-source.mjs .
 ```
 
-Run tests with:
+See [integrations/msfs2020/README.md](integrations/msfs2020/README.md) for the complete maintainer/build workflow.
 
-```bash
-dotnet test MetarViewer.sln
-```
+## Repository note
 
-Build an ad-hoc signed and verified DMG locally with:
-
-```bash
-scripts/package-macos.sh osx-arm64 1.0.0
-# Or, for an Intel Mac:
-scripts/package-macos.sh osx-x64 1.0.0
-```
-
-The DMG and its SHA-256 checksum are written under `artifacts/macos/<runtime>/`.
-The packaging script validates the bundle metadata, executable architecture and
-code signature, verifies the disk image, then mounts it read-only and validates
-the installed contents before returning success.
-
-The code is split into two projects. `MetarViewer.Core` holds the METAR parsing,
-decoding and web service code and targets plain `net8.0`, so its tests run on any
-operating system. `MetarViewer.App` holds the Avalonia desktop UI and publishes for
-both Apple Silicon (`osx-arm64`) and Intel (`osx-x64`) Macs.
-
-## Maintainer: Publishing a Mac Release
-
-Relevant pushes to `Mac-Version` run the **Build macOS Release** workflow and
-upload Apple Silicon and Intel DMGs as workflow artifacts retained for 30 days.
-Branch-push artifacts are development builds and do not create a GitHub Release.
-
-To publish permanent release assets, push a strict `mac-vX.Y.Z` tag from a commit
-on the `Mac-Version` branch:
-
-```bash
-git switch Mac-Version
-git tag mac-v1.0.0
-git push origin mac-v1.0.0
-```
-
-For a release tag, the workflow tests the whole solution, builds separate Apple
-Silicon and Intel application bundles, packages and verifies each `.dmg`, and
-creates an explicitly titled **METAR Viewer for Mac** entry under GitHub Releases.
-The release is created only after both architecture jobs succeed.
-
-## Project Notes
-
-- Airport lookup: [AirportsAPI](https://airportsapi.com/docs/api)
-- Primary METAR source: [VATSIM METAR API](https://vatsim.dev/api/metar-api/get-metar/)
-- Fallback METAR source: [Aviation Weather Center Data API](https://aviationweather.gov/data/api/)
-
-**Built with ❤️ for the aviation community**
+The `src/` and `tests/` directories also contain the separate METAR Viewer desktop application and its tests. They are not required to install or run the MSFS 2020 toolbar panel.
 
 ## License
 
-MIT License.
+MIT License. See [LICENSE](LICENSE).

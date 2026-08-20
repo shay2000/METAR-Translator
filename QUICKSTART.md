@@ -1,72 +1,68 @@
-# Quick Start Guide
+# MSFS 2020 Quick Start
 
-Get the METAR Viewer app running in 5 minutes.
+Install METAR Viewer as a normal Microsoft Flight Simulator 2020 Community add-on.
 
-## Step 1: Prerequisites
+## Before you start
 
-Install these first:
+You need:
 
-1. **Visual Studio 2022** (Community, Professional, or Enterprise)
-   - Download: https://visualstudio.microsoft.com/downloads/
-   - During install, select:
-     - ".NET Desktop Development" workload
-     - "Universal Windows Platform development" workload
+- Microsoft Flight Simulator 2020 for Windows.
+- A compiled `metar-viewer-toolbar` package, normally supplied as a release ZIP.
 
-2. **.NET 8 SDK**
-   - Download: https://dotnet.microsoft.com/download/dotnet/8.0
-   - Install the SDK (not just runtime)
+You do **not** need the .NET desktop app, Visual Studio, Node.js, or the MSFS SDK just to install a packaged release. Those tools are only needed when building the package from source; see [the build guide](integrations/msfs2020/README.md).
 
-## Step 2: Open the Project
+## Install
 
-1. Extract the project files to a folder (e.g., `C:\Projects\MetarViewer`)
-2. Open `MetarViewer.sln` in Visual Studio 2022
-3. Wait for NuGet packages to restore (check status bar)
+1. If you do not know the Community folder, start MSFS 2020, enable **Developer Mode** under **Options → General Options → Developers**, and open **Developer Toolbar → Tools → Virtual File System → Packages Folders → Open Community Folder**. This opens the exact folder the simulator is watching. Then exit MSFS before copying the mod. The Microsoft Store/Xbox App and Steam versions use different default locations, so use this method rather than guessing a path. If you already know the folder, open it directly. Do not copy a mod while the simulator is running.
+2. Open the METAR Viewer release ZIP.
+3. Copy or extract the folder named `metar-viewer-toolbar` into the Community folder.
+4. Check the final layout:
 
-## Step 3: Build
+   ```text
+   Community\metar-viewer-toolbar\manifest.json
+   Community\metar-viewer-toolbar\layout.json
+   Community\metar-viewer-toolbar\InGamePanels\InGamePanel_MetarViewer.spb
+   Community\metar-viewer-toolbar\html_ui\InGamePanels\MetarViewer\MetarViewer.html
+   ```
 
-1. Select **Debug** and **x64** from the dropdowns at the top
-2. Press `Ctrl+Shift+B` or click Build → Build Solution
-3. Wait for "Build succeeded" message
+   `manifest.json` and `layout.json` must be directly inside `metar-viewer-toolbar`. A common mistake is creating an extra nested folder:
 
-## Step 4: Run
+   ```text
+   Community\metar-viewer-toolbar\metar-viewer-toolbar\manifest.json  ← wrong
+   ```
 
-1. Press `F5` or click the green "Start" button
-2. The METAR Viewer window will open
+5. Start MSFS 2020 and start a flight.
+6. Select the **METAR Viewer** icon in the toolbar. If it is not immediately visible, check the toolbar overflow menu.
+7. Test with `EGLL`, `KJFK`, or another airport with a current METAR.
 
-## Step 5: Test It
+## If you downloaded the source repository
 
-1. Type `EGLL` in the search box
-2. Press Enter or click "Get METAR"
-3. You should see London Heathrow weather data
+Do not copy the repository into Community. Files such as `MetarViewerToolbar.xml`, `PackageDefinitions`, and `PackageSources` are build inputs, not an installable mod. The package must contain the SDK-generated `InGamePanel_MetarViewer.spb`, `layout.json`, and `manifest.json`.
+
+To build it yourself, use a Windows machine with the MSFS 2020 SDK and Node.js, then follow [integrations/msfs2020/README.md](integrations/msfs2020/README.md).
+
+## Remove or update
+
+1. Close MSFS 2020.
+2. Delete or replace `Community\metar-viewer-toolbar`.
+3. Restart the simulator.
 
 ## Troubleshooting
 
-**Build errors?**
-- Make sure you installed both workloads in Visual Studio
-- Try: Tools → NuGet Package Manager → Package Manager Console
-- Run: `Update-Package -Reinstall`
+### No toolbar icon
 
-**App won't start?**
-- Check you selected x64 (not x86 or ARM64)
-- Try rebuilding: Build → Rebuild Solution
+- Confirm that the package folder is in the Community folder opened by Developer Mode.
+- Confirm that `manifest.json` and `layout.json` are at the package root.
+- Confirm that `InGamePanels\InGamePanel_MetarViewer.spb` exists and is not an XML file renamed to `.spb`.
+- Restart the simulator after copying the package.
+- Temporarily remove other toolbar-panel mods to check for a package conflict after a simulator update.
 
-**"Could not retrieve METAR"?**
-- Check your internet connection
-- One of the public weather providers may be temporarily unavailable
-- Try again in 60 seconds
+### The panel opens but weather is unavailable
 
-**Still not getting a report?**
-1. Try a major reporting airport such as `EGLL`, `KJFK`, or `OMDB`
-2. Check that the airport actually publishes METAR data
-3. Try again shortly in case a provider is lagging
+- Try a direct four-letter ICAO code such as `EGLL`.
+- Check your internet connection; airport-name lookup and the VATSIM fallback use online services.
+- Try again after a minute if a public weather service is temporarily unavailable.
 
-## What's Next?
+### Important limitation
 
-- Try other airports: KJFK, LFPG, RJTT
-- Toggle dark/light theme (button in top-right)
-- Try airport names or partial searches in the search box
-- Read the full README.md for advanced features
-
-## Need Help?
-
-Check README.md for detailed troubleshooting and documentation.
+The panel is intended for MSFS 2020 PC Community packages. It has not been tested on Xbox, and simulator updates can change undocumented toolbar-panel behavior. Remove or update community packages if a future simulator update causes compatibility problems.

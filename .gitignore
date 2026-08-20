@@ -106,3 +106,7 @@ $RECYCLE.BIN/
 
 # Mac files
 .DS_Store
+
+# Microsoft Flight Simulator SDK build output
+integrations/msfs2020/_PackageInt/
+integrations/msfs2020/Packages/

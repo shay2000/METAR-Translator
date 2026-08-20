@@ -1,83 +1,79 @@
-# METAR Viewer for Microsoft Flight Simulator 2020
+# METAR Viewer MSFS 2020 integration
 
-This directory contains a self-contained Microsoft Flight Simulator 2020 toolbar-panel version of METAR Viewer. At runtime it does not launch the Avalonia desktop app or require a companion process: the panel is HTML, CSS, and JavaScript loaded by the simulator.
+This directory contains the source and build tools for the METAR Viewer in-game toolbar panel. The final output is a normal Microsoft Flight Simulator 2020 Community package.
 
-> This integration is for flight simulation and hobby use only. Never use it for real-world aviation, flight planning, or navigation.
+The panel runs inside the simulator's HTML/JavaScript UI. It does not launch the Avalonia desktop application and does not need a companion process.
 
-## Current status
+> **Simulation use only.** This integration is for flight simulation and hobby use. Never use it for real-world aviation, flight planning, navigation, or weather decisions.
 
-The panel source, package definitions, build validation, parser, airport matching, weather-source fallback, caching, and UI lifecycle are implemented and covered by dependency-free Node tests.
+## Install a packaged release
 
-One release gate cannot be completed on macOS: the panel registration XML must be compiled to an `.spb` by the Windows-only MSFS 2020 SDK. The resulting Community package must then be installed and exercised in MSFS 2020 before it is described as a working release. No placeholder `.spb` is checked in.
+Players should install a compiled release ZIP, not this source directory:
 
-Custom toolbar registration through `InGamePanels.InGamePanelDefinition` is a widely used MSFS 2020 package pattern, but it is not a stable, formally documented extension contract. Revalidate the package after supported Sim Updates.
+1. If you do not know the Community folder, start MSFS 2020, use **Developer Mode → Tools → Virtual File System → Packages Folders → Open Community Folder**, then close MSFS before copying the package. If you already know the folder, open it directly. `UserCfg.opt` also records the `InstalledPackagesPath`; the active Community folder is beneath it. Do not use `Official`.
+2. Extract the release ZIP directly into the Community folder.
+3. Confirm the package has this shape:
 
-## How it works
+   ```text
+   Community\
+   └── metar-viewer-toolbar\
+       ├── manifest.json
+       ├── layout.json
+       ├── InGamePanels\
+       │   └── InGamePanel_MetarViewer.spb
+       └── html_ui\
+           ├── InGamePanels\MetarViewer\...
+           └── Textures\Menu\toolbar\ICON_TOOLBAR_METAR_VIEWER.svg
+   ```
 
-The in-game panel uses this source order:
+   `manifest.json` and `layout.json` must be at the root of `metar-viewer-toolbar`. Do not leave an extra archive folder around the package, and do not copy `PackageSources`, `PackageDefinitions`, or the whole repository into Community.
 
-1. MSFS facility listener `JS_LISTENER_FACILITY` and `GET_METAR_BY_IDENT`, so the first result reflects the simulator's weather source.
-2. The VATSIM METAR endpoint when the simulator returns no observation or its facility request fails.
-3. AirportsAPI for ICAO, IATA, airport-name, and typo-tolerant suggestions. A four-letter ICAO remains usable when airport search is offline.
+4. Restart MSFS 2020, start a flight, and open **METAR Viewer** from the toolbar. The icon may be in the toolbar overflow menu.
 
-Reports are decoded locally. Positive METAR results are cached for 60 seconds, airport resolutions for 10 minutes, and suggestions for 2 minutes. The last successfully viewed station is saved through the simulator data-store functions when available.
+This is intentionally the same folder-and-package workflow used by ordinary MSFS 2020 mods. The release ZIP contains one package folder; it is not an executable installer.
 
-AviationWeather.gov is deliberately not called from the panel because its API does not permit cross-origin browser requests.
+## Why the source checkout cannot be installed directly
 
-## Source layout
+The toolbar registration starts as `PackageSources/InGamePanels/InGamePanel_MetarViewer.xml`, but MSFS 2020 loads the SDK-compiled binary `InGamePanels/InGamePanel_MetarViewer.spb`. The SDK also generates `manifest.json` and `layout.json`, including the file inventory and byte sizes required by the simulator.
 
-```text
-MetarViewerToolbar.xml                         MSFS project
-PackageDefinitions/metar-viewer-toolbar.xml   package and asset groups
-PackageSources/InGamePanels/                  toolbar registration source
-PackageSources/html_ui/InGamePanels/           panel UI and portable logic
-PackageSources/html_ui/Textures/               toolbar icon
-tools/                                         source/built-package validators
-tests/                                         Node regression tests
-build.bat                                      Windows SDK build entry point
-```
+The repository intentionally does not contain a placeholder `.spb`. A package built without the SDK would not be a valid toolbar mod.
 
-The SDK creates generated `_PackageInt/` and `Packages/` directories locally. They are build outputs and must not be committed.
+## Build a Community package from source
 
-## Prerequisites
+Building is for developers or maintainers who need to create a release package.
 
-- Windows with Microsoft Flight Simulator 2020 installed
-- Developer Mode enabled in MSFS 2020
-- The current MSFS 2020 SDK installed from the simulator's Developer Mode **Help** menu
-- Node.js 24 LTS or newer
+### Prerequisites
 
-The SDK is a Windows MSI and its package compiler is `fspackagetool.exe`; Microsoft does not provide a macOS equivalent.
+- Windows.
+- Microsoft Flight Simulator 2020 and its current SDK. Enable Developer Mode, then install/update the SDK from the simulator's **Help** menu.
+- Node.js 24 LTS or newer for the portable tests and validators.
 
-## Run portable tests
+This HTML/JavaScript panel does not require the .NET desktop application or Visual Studio to run. The SDK's `fspackagetool.exe` is the important build dependency.
 
-From this directory:
+### Build and package
 
-```text
-node --test
-node tools\validate-source.mjs .
-```
-
-These tests work on macOS, Linux, and Windows. They do not prove that the undocumented toolbar registration still works in the current simulator build.
-
-## Build the Community package on Windows
-
-Open Command Prompt and point `MSFS_SDK` at the SDK installation directory:
+Open Command Prompt and run:
 
 ```bat
-cd integrations\msfs2020
+cd path\to\METAR-Translator\integrations\msfs2020
+build.bat "C:\MSFS SDK"
+```
+
+The SDK path can also be supplied through `MSFS_SDK`:
+
+```bat
 set "MSFS_SDK=C:\MSFS SDK"
 build.bat
 ```
 
-If `node.exe` is not on `PATH`, set `NODE_EXE` to its full path before running the script.
+If `node.exe` is not on `PATH`, set `NODE_EXE` to its full path before running the build. The build performs four checks/actions:
 
-The script:
+1. Validate the source XML, HTML references, and package paths.
+2. Compile the panel registration with `fspackagetool.exe`.
+3. Validate the generated manifest, layout, payload inventory, compiled `.spb`, and file sizes.
+4. Create a distribution ZIP whose root is `metar-viewer-toolbar`.
 
-1. Validates source XML and every local asset reference in the panel HTML.
-2. invokes `%MSFS_SDK%\Tools\bin\fspackagetool.exe` for a clean package build;
-3. validates the generated `manifest.json`, `layout.json`, compiled `.spb`, path safety, byte sizes, and payload inventory.
-
-The expected output is:
+Successful output is:
 
 ```text
 Packages\metar-viewer-toolbar\
@@ -86,25 +82,65 @@ Packages\metar-viewer-toolbar\
 ├── html_ui\Textures\Menu\toolbar\ICON_TOOLBAR_METAR_VIEWER.svg
 ├── layout.json
 └── manifest.json
+
+Packages\metar-viewer-toolbar.zip
+└── metar-viewer-toolbar\...
 ```
 
-## Install and validate in MSFS 2020
+Copy the folder into Community for local testing, or distribute the ZIP. Do not modify the generated package after validation; rebuild it when source files change.
 
-1. In Developer Mode, open **Tools → Virtual File System → Packages Folders** and use **Open Community Folder** to locate the active Community folder.
-2. Copy the complete `Packages\metar-viewer-toolbar` directory into that Community folder.
-3. Restart the simulator and start a flight.
-4. Confirm that the METAR Viewer icon appears once in the in-game toolbar.
-5. Open, close, move, and resize the panel, then test `EGLL`, `LHR`, `London Heathrow`, and a misspelling such as `Heatrow`.
-6. Confirm the displayed raw report matches the simulator weather, VATSIM fallback works when required, and the previous station returns after a simulator restart.
-7. Use the Coherent debugger to confirm there are no load, network, or lifecycle errors when the panel is repeatedly opened and closed.
+### Portable tests and source validation
 
-Also validate on each supported Sim Update, on both Microsoft Store and Steam installations where possible, and with other toolbar mods installed. MSFS VFS conflicts are resolved by package load order.
+From this directory:
+
+```text
+node --test
+node tools\validate-source.mjs .
+```
+
+These checks run on macOS, Linux, and Windows. They validate the portable parser, services, controller, XML wiring, local assets, and package rules. They cannot prove that the undocumented toolbar registration behaves correctly in a running simulator.
+
+## In-simulator acceptance check
+
+After building or installing a release package:
+
+1. Start MSFS 2020 and a flight with the package enabled.
+2. Confirm that the **METAR Viewer** toolbar icon appears once.
+3. Open, close, move, and resize the panel.
+4. Search `EGLL`, `LHR`, `London Heathrow`, and a typo such as `Heatrow`.
+5. Confirm the raw report, decoded values, and flight category are populated.
+6. Confirm the provider badge shows the simulator source when available and VATSIM when fallback is required.
+7. Close and reopen the panel, then restart the simulator and confirm the last station is restored when the simulator data store is available.
+8. Check the Coherent debugger for load, network, and lifecycle errors while repeatedly opening and closing the panel.
+
+If the package is not detected, first check that `manifest.json` and `layout.json` are at the package root. Developer Mode **Tools → Packages** can show whether MSFS mounted the package.
+
+## Compatibility notes
+
+The package uses the widely used `InGamePanels.InGamePanelDefinition` toolbar pattern. The registration surface is not a stable, formally documented extension contract, so re-test the package after simulator updates. Package conflicts or broken toolbar-panel mods can also prevent a panel from appearing; isolate the package in a clean Community folder when diagnosing that case.
+
+## Source layout
+
+```text
+MetarViewerToolbar.xml                              MSFS project definition
+PackageDefinitions/metar-viewer-toolbar.xml        package and asset groups
+PackageSources/InGamePanels/                       toolbar registration source
+PackageSources/html_ui/InGamePanels/MetarViewer/   panel UI and portable logic
+PackageSources/html_ui/Textures/                   toolbar icon
+tools/                                              source/package validators and ZIP helper
+tests/                                              Node regression tests
+build.bat                                           Windows SDK build entry point
+```
+
+The SDK creates `_PackageInt/` and `Packages/` as local build output. They are ignored by Git and should not be committed.
 
 ## References
 
+- [Microsoft: How to install mods in MSFS 2020](https://flightsimulator.zendesk.com/hc/en-us/articles/7058492594588-How-to-install-mods-in-Microsoft-Flight-Simulator-2020)
 - [MSFS 2020 SDK overview](https://docs.flightsimulator.com/html/Introduction/SDK_Overview.htm)
 - [Using the SDK and Community package structure](https://docs.flightsimulator.com/html/Introduction/Using_The_SDK.htm)
 - [Package Tool](https://docs.flightsimulator.com/html/Additional_Information/Tools/Package_Tool/Package_Tool.htm)
+- [Community package export](https://docs.flightsimulator.com/html/Developer_Mode/Project_Editor/Export_Window.htm)
 - [Coherent JavaScript API](https://docs.flightsimulator.com/html/Programming_Tools/JavaScript/Coherent.htm)
 - [Facility listener calls](https://docs.flightsimulator.com/html/Programming_Tools/JavaScript/Coherent_Listeners/JS_LISTENER_FACILITY.htm)
 - [AviationWeather.gov API restrictions](https://aviationweather.gov/data/api/)

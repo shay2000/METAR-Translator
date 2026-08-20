@@ -5,7 +5,11 @@ set "INTEGRATION_ROOT=%~dp0"
 set "PROJECT_FILE=%INTEGRATION_ROOT%MetarViewerToolbar.xml"
 set "SOURCE_VALIDATOR=%INTEGRATION_ROOT%tools\validate-source.mjs"
 set "PACKAGE_VALIDATOR=%INTEGRATION_ROOT%tools\validate-package.mjs"
+set "ZIP_CREATOR=%INTEGRATION_ROOT%tools\create-package-zip.ps1"
 set "PACKAGE_OUTPUT=%INTEGRATION_ROOT%Packages\metar-viewer-toolbar"
+set "PACKAGE_ZIP=%INTEGRATION_ROOT%Packages\metar-viewer-toolbar.zip"
+
+if not "%~1"=="" set "MSFS_SDK=%~1"
 
 if not defined NODE_EXE set "NODE_EXE=node"
 
@@ -26,13 +30,14 @@ if %NODE_MAJOR% LSS 24 (
   exit /b 1
 )
 
-echo [1/3] Validating MSFS package sources...
+echo [1/4] Validating MSFS package sources...
 "%NODE_EXE%" "%SOURCE_VALIDATOR%" "%INTEGRATION_ROOT%"
 if errorlevel 1 exit /b 1
 
 if not defined MSFS_SDK (
   echo ERROR: MSFS_SDK is not set.
-  echo Set MSFS_SDK to the Microsoft Flight Simulator 2020 SDK installation directory.
+  echo Set MSFS_SDK to the Microsoft Flight Simulator 2020 SDK installation directory,
+  echo or pass that directory as the first argument to build.bat.
   exit /b 1
 )
 
@@ -50,7 +55,12 @@ if not exist "%PROJECT_FILE%" (
   exit /b 1
 )
 
-echo [2/3] Building with the MSFS 2020 Package Tool...
+if not exist "%ZIP_CREATOR%" (
+  echo ERROR: ZIP helper was not found at "%ZIP_CREATOR%".
+  exit /b 1
+)
+
+echo [2/4] Building with the MSFS 2020 Package Tool...
 pushd "%INTEGRATION_ROOT%"
 if errorlevel 1 (
   echo ERROR: Could not enter "%INTEGRATION_ROOT%".
@@ -68,13 +78,21 @@ if not exist "%PACKAGE_OUTPUT%\manifest.json" (
   exit /b 1
 )
 
-echo [3/3] Validating the built Community package...
+echo [3/4] Validating the built Community package...
 "%NODE_EXE%" "%PACKAGE_VALIDATOR%" "%PACKAGE_OUTPUT%"
 if errorlevel 1 exit /b 1
 
+echo [4/4] Creating the Community-folder ZIP...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%ZIP_CREATOR%" -PackagePath "%PACKAGE_OUTPUT%" -OutputPath "%PACKAGE_ZIP%"
+if errorlevel 1 (
+  echo ERROR: Could not create the Community-folder ZIP.
+  exit /b 1
+)
+
 echo.
 echo Build and structural validation completed successfully.
-echo Output: "%PACKAGE_OUTPUT%"
+echo Package folder: "%PACKAGE_OUTPUT%"
+echo Distribution ZIP: "%PACKAGE_ZIP%"
 echo REQUIRED RELEASE GATE: install this package in a clean Community folder and
 echo verify the icon, panel lifecycle, network behavior, and console output in MSFS 2020.
 exit /b 0
