@@ -1,0 +1,412 @@
+:root {
+    --metar-bg: #0b1119;
+    --metar-panel: #121c28;
+    --metar-panel-soft: #182535;
+    --metar-line: rgba(165, 193, 218, 0.18);
+    --metar-text: #f2f7fb;
+    --metar-muted: #9eb0c0;
+    --metar-accent: #56d5be;
+    --metar-accent-strong: #23bda3;
+    --metar-focus: #8ee8d8;
+    --metar-danger: #ff8f8f;
+    --metar-warning: #ffd36b;
+    --metar-radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+ingamepanel-metar-viewer,
+ingame-ui {
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+    color: var(--metar-text);
+    background: var(--metar-bg);
+    font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+button:focus,
+input:focus,
+[role="option"]:focus {
+    outline: 2px solid var(--metar-focus);
+    outline-offset: 2px;
+}
+
+.metar-app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: 22px;
+    overflow-y: auto;
+    background:
+        radial-gradient(circle at 90% 0%, rgba(60, 180, 163, 0.14), transparent 35%),
+        linear-gradient(165deg, #0d1620 0%, var(--metar-bg) 70%);
+}
+
+.app-header,
+.station-row,
+.card-heading-row,
+.app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.app-header {
+    margin-bottom: 18px;
+}
+
+.app-header h1,
+.station-row h2,
+.weather-card h3,
+.app-header p,
+.weather-card p {
+    margin: 0;
+}
+
+.app-header h1 {
+    margin-top: 2px;
+    font-size: 30px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+
+.eyebrow,
+.weather-label {
+    color: var(--metar-accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+}
+
+.subtitle,
+.muted {
+    margin-top: 5px !important;
+    color: var(--metar-muted);
+}
+
+.provider-badge,
+.flight-category {
+    flex: none;
+    padding: 6px 9px;
+    border: 1px solid rgba(86, 213, 190, 0.42);
+    border-radius: 999px;
+    color: var(--metar-accent);
+    background: rgba(86, 213, 190, 0.09);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.search-card,
+.weather-card {
+    border: 1px solid var(--metar-line);
+    border-radius: var(--metar-radius);
+    background: rgba(18, 28, 40, 0.96);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.search-card {
+    position: relative;
+    z-index: 2;
+    padding: 15px;
+}
+
+.search-card label {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--metar-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.search-row {
+    display: flex;
+    gap: 9px;
+}
+
+#airport-search {
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 42px;
+    padding: 0 13px;
+    border: 1px solid rgba(165, 193, 218, 0.27);
+    border-radius: 8px;
+    color: var(--metar-text);
+    background: #0c151f;
+}
+
+#airport-search::placeholder {
+    color: #718496;
+}
+
+.primary-button,
+.secondary-button {
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.primary-button {
+    position: relative;
+    min-width: 104px;
+    padding: 0 16px;
+    color: #051311;
+    background: var(--metar-accent);
+}
+
+.primary-button:hover,
+.primary-button:focus {
+    background: #79e2cf;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.secondary-button {
+    padding: 7px 11px;
+    color: var(--metar-accent);
+    background: rgba(86, 213, 190, 0.1);
+}
+
+.button-progress {
+    display: none;
+    width: 15px;
+    height: 15px;
+    margin: 0 auto;
+    border: 2px solid rgba(5, 19, 17, 0.25);
+    border-top-color: #051311;
+    border-radius: 50%;
+    animation: metar-spin 0.75s linear infinite;
+}
+
+.is-loading .button-label {
+    display: none;
+}
+
+.is-loading .button-progress {
+    display: block;
+}
+
+@keyframes metar-spin {
+    to { transform: rotate(360deg); }
+}
+
+.suggestions {
+    position: absolute;
+    top: calc(100% - 6px);
+    right: 15px;
+    left: 15px;
+    overflow: hidden;
+    border: 1px solid rgba(165, 193, 218, 0.28);
+    border-radius: 9px;
+    background: #101a26;
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
+}
+
+.suggestion-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 13px;
+    border: 0;
+    border-bottom: 1px solid var(--metar-line);
+    color: var(--metar-text);
+    text-align: left;
+    background: transparent;
+    cursor: pointer;
+}
+
+.suggestion-option:last-child {
+    border-bottom: 0;
+}
+
+.suggestion-option:hover,
+.suggestion-option.is-active {
+    background: var(--metar-panel-soft);
+}
+
+.suggestion-code {
+    color: var(--metar-accent);
+    font-weight: 700;
+}
+
+.suggestion-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--metar-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-message {
+    margin-top: 12px;
+    padding: 11px 13px;
+    border: 1px solid var(--metar-line);
+    border-radius: 8px;
+    color: var(--metar-muted);
+    background: rgba(18, 28, 40, 0.78);
+}
+
+.status-message[data-tone="error"] {
+    border-color: rgba(255, 143, 143, 0.4);
+    color: var(--metar-danger);
+}
+
+.status-message[data-tone="warning"] {
+    border-color: rgba(255, 211, 107, 0.4);
+    color: var(--metar-warning);
+}
+
+.result-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.weather-card {
+    padding: 16px;
+}
+
+.weather-card h3 {
+    font-size: 15px;
+}
+
+.summary-card {
+    border-color: rgba(86, 213, 190, 0.25);
+}
+
+.station-row h2 {
+    font-size: 22px;
+}
+
+.flight-category[data-category="VFR"] {
+    border-color: rgba(86, 213, 190, 0.55);
+    color: #6de2c9;
+}
+
+.flight-category[data-category="MVFR"] {
+    border-color: rgba(94, 171, 255, 0.55);
+    color: #86bfff;
+}
+
+.flight-category[data-category="IFR"] {
+    border-color: rgba(255, 125, 125, 0.55);
+    color: #ff9b9b;
+}
+
+.flight-category[data-category="LIFR"] {
+    border-color: rgba(224, 133, 255, 0.55);
+    color: #e5a1ff;
+}
+
+.weather-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.weather-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 68px;
+    padding: 11px;
+    border-radius: 8px;
+    background: rgba(7, 14, 21, 0.48);
+}
+
+.weather-item-wide {
+    grid-column: 1 / -1;
+}
+
+.raw-metar {
+    margin-top: 13px !important;
+    color: #dbe8f1;
+    font-family: "Roboto Mono", Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.decoded-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.decoded-card h3 {
+    grid-column: 1 / -1;
+}
+
+.decoded-card p {
+    margin-top: 4px !important;
+    color: var(--metar-muted);
+    line-height: 1.45;
+}
+
+.app-footer {
+    margin-top: auto;
+    padding-top: 18px;
+    color: #74899b;
+    font-size: 11px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 540px) {
+    .metar-app {
+        padding: 14px;
+    }
+
+    .app-header,
+    .search-row,
+    .decoded-card {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .provider-badge {
+        align-self: flex-start;
+    }
+
+    .primary-button {
+        min-height: 42px;
+    }
+
+    .weather-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .weather-item-wide,
+    .decoded-card h3 {
+        grid-column: auto;
+    }
+}

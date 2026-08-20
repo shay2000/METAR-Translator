@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg id="ICON_TOOLBAR_METAR_VIEWER" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">METAR Viewer</title>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="4">
+    <path d="M14 39h35c6 0 10-4 10-10s-4-10-10-10c-2 0-4 .6-5.6 1.7A15 15 0 0 0 15 25.5h-1A6.5 6.5 0 0 0 14 39Z" />
+    <path d="M8 47h31" />
+    <path d="M17 55h34" />
+  </g>
+</svg>

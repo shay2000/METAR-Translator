@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AssetPackage Name="metar-viewer-toolbar" Version="1.0.0">
+  <ItemSettings>
+    <ContentType>MISC</ContentType>
+    <Title>METAR Viewer Toolbar</Title>
+    <Manufacturer />
+    <Creator>METAR Viewer</Creator>
+    <Description>METAR lookup and decoding in the Microsoft Flight Simulator toolbar.</Description>
+  </ItemSettings>
+  <Flags>
+    <VisibleInStore>false</VisibleInStore>
+    <CanBeReferenced>false</CanBeReferenced>
+  </Flags>
+  <AssetGroups>
+    <AssetGroup Name="Copy_MetarViewer">
+      <Type>Copy</Type>
+      <Flags>
+        <FSXCompatibility>false</FSXCompatibility>
+      </Flags>
+      <AssetDir>PackageSources\html_ui\</AssetDir>
+      <OutputDir>html_ui\</OutputDir>
+    </AssetGroup>
+    <AssetGroup Name="InGamePanels_MetarViewer">
+      <Type>SPB</Type>
+      <Flags>
+        <FSXCompatibility>false</FSXCompatibility>
+      </Flags>
+      <AssetDir>PackageSources\InGamePanels\</AssetDir>
+      <OutputDir>InGamePanels\</OutputDir>
+    </AssetGroup>
+  </AssetGroups>
+</AssetPackage>

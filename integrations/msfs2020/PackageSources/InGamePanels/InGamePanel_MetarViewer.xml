@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SimBase.Document Type="InGamePanels" version="1.0">
+  <Filename>InGamePanel_MetarViewer.spb</Filename>
+  <InGamePanels.InGamePanelDefinition
+    id="PANEL_METAR_VIEWER"
+    Name="METAR Viewer"
+    url="html_ui/InGamePanels/MetarViewer/MetarViewer.html"
+    resizeDirections="Both"
+    minWidth="24"
+    minHeight="24"
+    defaultWidth="42"
+    defaultHeight="54"
+    defaultTop="20"
+    defaultRight="2"
+    icon="ICON_TOOLBAR_METAR_VIEWER"
+    buttonVisible="true">
+  </InGamePanels.InGamePanelDefinition>
+</SimBase.Document>

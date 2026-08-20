@@ -1,0 +1,46 @@
+name: Validate MSFS 2020 Integration
+
+on:
+  push:
+    branches:
+      - FlightSimIntegration
+    paths:
+      - ".github/workflows/msfs-integration.yml"
+      - "integrations/msfs2020/**"
+  pull_request:
+    paths:
+      - ".github/workflows/msfs-integration.yml"
+      - "integrations/msfs2020/**"
+
+permissions:
+  contents: read
+
+jobs:
+  portable-validation:
+    name: Portable validation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    defaults:
+      run:
+        working-directory: integrations/msfs2020
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 24 LTS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Run parser, service, controller, and package tests
+        run: node --test
+
+      - name: Validate the MSFS source tree
+        run: node tools/validate-source.mjs .

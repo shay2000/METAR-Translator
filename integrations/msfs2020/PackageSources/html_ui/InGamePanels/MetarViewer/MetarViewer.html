@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>METAR Viewer</title>
+
+    <link rel="stylesheet" href="/SCSS/common.css" />
+    <link rel="stylesheet" href="MetarViewer.css" />
+
+    <script type="text/javascript" src="/JS/coherent.js"></script>
+    <script type="text/javascript" src="/JS/common.js"></script>
+    <script type="text/javascript" src="/JS/dataStorage.js"></script>
+    <script type="text/javascript" src="/JS/buttons.js"></script>
+    <script type="text/javascript" src="/JS/Services/ToolBarPanels.js"></script>
+    <script type="text/javascript" src="/Pages/VCockpit/Instruments/Shared/BaseInstrument.js"></script>
+
+    <link rel="import" href="/templates/ingameUi/ingameUi.html" />
+    <link rel="import" href="/templates/ingameUiHeader/ingameUiHeader.html" />
+
+    <script type="text/javascript" src="metar-core.js"></script>
+    <script type="text/javascript" src="weather-service.js"></script>
+    <script type="text/javascript" src="airport-service.js"></script>
+    <script type="text/javascript" src="panel-app.js"></script>
+    <script type="text/javascript" src="MetarViewer.js"></script>
+</head>
+<body class="border-box">
+    <ingamepanel-metar-viewer>
+        <ingame-ui
+            id="MetarViewerPanel"
+            panel-id="PANEL_METAR_VIEWER"
+            title="METAR VIEWER"
+            class="ingameUiFrame panelInvisible"
+            content-fit="true"
+            min-width="420"
+            min-height="360">
+            <main id="metar-viewer-app" class="metar-app" aria-label="METAR Viewer">
+                <header class="app-header">
+                    <div>
+                        <p class="eyebrow">FLIGHT WEATHER</p>
+                        <h1>METAR Viewer</h1>
+                        <p class="subtitle">Live observations, decoded in the cockpit</p>
+                    </div>
+                    <span id="provider-badge" class="provider-badge" hidden></span>
+                </header>
+
+                <section class="search-card" aria-label="Airport search">
+                    <form id="search-form" novalidate>
+                        <label for="airport-search">Airport</label>
+                        <div class="search-row">
+                            <input
+                                id="airport-search"
+                                name="airport"
+                                type="text"
+                                inputmode="text"
+                                autocomplete="off"
+                                autocapitalize="characters"
+                                spellcheck="false"
+                                maxlength="80"
+                                placeholder="ICAO, IATA, or airport name"
+                                aria-autocomplete="list"
+                                aria-controls="airport-suggestions"
+                                aria-expanded="false" />
+                            <button id="search-button" class="primary-button" type="submit">
+                                <span class="button-label">Get METAR</span>
+                                <span class="button-progress" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </form>
+                    <div
+                        id="airport-suggestions"
+                        class="suggestions"
+                        role="listbox"
+                        aria-label="Airport suggestions"
+                        hidden></div>
+                </section>
+
+                <div id="status-message" class="status-message" role="status" aria-live="polite" hidden></div>
+
+                <section id="metar-result" class="result-stack" aria-live="polite" hidden>
+                    <article class="weather-card summary-card">
+                        <div class="station-row">
+                            <div>
+                                <h2 id="station-heading"></h2>
+                                <p id="observation-time" class="muted"></p>
+                            </div>
+                            <span id="flight-category" class="flight-category"></span>
+                        </div>
+
+                        <div class="weather-grid">
+                            <div class="weather-item">
+                                <span class="weather-label">WIND</span>
+                                <span id="decoded-wind"></span>
+                            </div>
+                            <div class="weather-item">
+                                <span class="weather-label">VISIBILITY</span>
+                                <span id="decoded-visibility"></span>
+                            </div>
+                            <div class="weather-item">
+                                <span class="weather-label">TEMPERATURE</span>
+                                <span id="decoded-temperature"></span>
+                            </div>
+                            <div class="weather-item">
+                                <span class="weather-label">ALTIMETER</span>
+                                <span id="decoded-altimeter"></span>
+                            </div>
+                            <div class="weather-item weather-item-wide">
+                                <span class="weather-label">CLOUDS</span>
+                                <span id="decoded-clouds"></span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="weather-card">
+                        <div class="card-heading-row">
+                            <h3>Raw METAR</h3>
+                            <button id="refresh-button" class="secondary-button" type="button">Refresh</button>
+                        </div>
+                        <p id="raw-metar" class="raw-metar"></p>
+                    </article>
+
+                    <article class="weather-card decoded-card">
+                        <h3>Decoded information</h3>
+                        <div>
+                            <span class="weather-label">FLIGHT CATEGORY</span>
+                            <p id="category-description"></p>
+                        </div>
+                        <div>
+                            <span class="weather-label">WEATHER</span>
+                            <p id="decoded-weather"></p>
+                        </div>
+                    </article>
+                </section>
+
+                <footer class="app-footer">
+                    <span>Simulator METAR with VATSIM fallback</span>
+                    <span id="connection-state">Ready</span>
+                </footer>
+            </main>
+        </ingame-ui>
+    </ingamepanel-metar-viewer>
+</body>
+</html>

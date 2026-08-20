@@ -1,6 +1,6 @@
 # METAR Viewer
 
-METAR Viewer is a native-feeling macOS desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format. This `Mac-Version` branch contains the cross-platform Avalonia UI and automated Mac packaging.
+METAR Viewer is a native-feeling macOS desktop app for searching airports and viewing live METAR weather reports in both raw and decoded format. The repository also contains a separate self-contained Microsoft Flight Simulator 2020 toolbar-panel implementation.
 
 ![macOS](https://img.shields.io/badge/macOS-14%2B%20%7C%20Intel%20and%20Apple%20Silicon-black)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
@@ -22,6 +22,7 @@ METAR Viewer is a native-feeling macOS desktop app for searching airports and vi
 - 💾 **Session Persistence**: Remembers your last searched airport across app restarts
 - ✈️ **Flight Categories**: Clear visual indication of VFR, MVFR, IFR, and LIFR conditions
 - 📱 **Responsive Design**: Adaptive layout that works well on different screen sizes
+- 🛩️ **In-Game Toolbar Panel**: A separate MSFS 2020 Community package displays and decodes METARs without launching the desktop app
 
 ## Download for Mac
 
@@ -41,6 +42,12 @@ METAR Viewer is a native-feeling macOS desktop app for searching airports and vi
 ## Alternative Download
 
 You can also download the Zip file from flightsim.to from this link: https://flightsim.to/addon/106602/metar-translator
+
+## Microsoft Flight Simulator 2020 Toolbar
+
+The [`FlightSimIntegration`](https://github.com/shay2000/METAR-Translator/tree/FlightSimIntegration) branch contains a native MSFS 2020 toolbar-panel port under `integrations/msfs2020`. It runs entirely inside the simulator's HTML/JavaScript UI, requests the simulator METAR first, and uses VATSIM as a fallback. No external METAR Viewer process is required while flying.
+
+The source and portable tests are complete, but the final panel-registration `.spb` must be compiled on Windows with the current MSFS 2020 SDK and validated in the simulator before release. See the [MSFS integration build and installation guide](integrations/msfs2020/README.md) for prerequisites, commands, and the in-simulator acceptance checklist.
 
 ## How To Use
 

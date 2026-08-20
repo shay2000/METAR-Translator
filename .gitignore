@@ -31,6 +31,8 @@ publish/
 # Local tooling and generated workspace copies
 .dotnet/
 MetarViewer/
+!integrations/msfs2020/PackageSources/html_ui/InGamePanels/MetarViewer/
+!integrations/msfs2020/PackageSources/html_ui/InGamePanels/MetarViewer/**
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
