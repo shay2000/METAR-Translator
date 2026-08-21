@@ -41,7 +41,7 @@ You do **not** need the .NET desktop app, Visual Studio, Node.js, or the MSFS SD
 
 Do not copy the repository into Community. Files such as `MetarViewerToolbar.xml`, `PackageDefinitions`, and `PackageSources` are build inputs, not an installable mod. The package must contain the SDK-generated `InGamePanel_MetarViewer.spb`, `layout.json`, and `manifest.json`.
 
-If this repository's GitHub Actions workflow is enabled, open **Actions → Build MSFS 2020 Community Package**, choose **Run workflow**, and download the ZIP from the completed run's **Artifacts** section. A tag such as `msfs-v1.0.0` publishes the same ZIP as a GitHub Release asset. If the hosted build fails while running `fspackagetool.exe`, use a Windows machine with the MSFS 2020 SDK and Node.js, then follow [integrations/msfs2020/README.md](integrations/msfs2020/README.md).
+If this repository's GitHub Actions workflow is enabled, open **Actions → Build MSFS 2020 Community Package**, choose **Run workflow**, and download the ZIP from the completed run's **Artifacts** section. The current MSFS release is `msfs-v1.0.1`; a tag in that format publishes the ZIP as a GitHub Release asset. If the hosted build fails while running `fspackagetool.exe`, use a Windows machine with the MSFS 2020 SDK and Node.js, then follow [integrations/msfs2020/README.md](integrations/msfs2020/README.md).
 
 ## Desktop apps: build and run
 

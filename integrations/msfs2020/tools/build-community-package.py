@@ -396,6 +396,11 @@ def parse_arguments(argv: List[str]) -> argparse.Namespace:
         help="manifest.json minimum_game_version (default: 1.0.0).",
     )
     parser.add_argument(
+        "--version",
+        default=None,
+        help="Package version to write to manifest.json (default: package definition version).",
+    )
+    parser.add_argument(
         "--keep-folder",
         action="store_true",
         help="Also write the unzipped package folder beside the ZIP for local testing.",
@@ -421,6 +426,12 @@ def main(argv: List[str]) -> int:
 
     log("[1/4] Reading package definitions...")
     metadata = read_package_metadata(integration_root)
+    if arguments.version is not None:
+        if not VERSION_PATTERN.match(arguments.version):
+            raise PackagingError(
+                f'--version must be MAJOR.MINOR.PATCH; found "{arguments.version}".'
+            )
+        metadata["version"] = arguments.version
     verify_panel_definition(integration_root)
     log(f"      {metadata['title']} {metadata['version']} by {metadata['creator']}")
 

@@ -1,6 +1,7 @@
 name: Release all platforms
 
-# Creates the version tags and then publishes THREE separate GitHub Releases:
+# Creates the version tags and then publishes THREE separate GitHub Releases.
+# Each platform has its own version sequence:
 #
 #   win-vX.Y.Z   -> METAR Viewer for Windows      (.exe)   windows-release.yml
 #   mac-vX.Y.Z   -> METAR Viewer for Mac          (.dmg)   mac-release.yml
@@ -30,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release, for example 1.0.7. Leave blank to bump the patch automatically."
+        description: "Optional shared version override, for example 1.0.7. Leave blank to bump each track independently."
         required: false
         type: string
 
@@ -44,8 +45,8 @@ concurrency:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # JOB 1: Allocate one version number and create all three tags up front, so
-  # the platform jobs below can each check out a tag that already exists.
+  # JOB 1: Allocate one version per platform and create all three tags up front,
+  # so the platform jobs below can each check out a tag that already exists.
   # ---------------------------------------------------------------------------
   tag:
     name: Create release tags
@@ -53,7 +54,9 @@ jobs:
     permissions:
       contents: write
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      windows_version: ${{ steps.version.outputs.windows_version }}
+      mac_version: ${{ steps.version.outputs.mac_version }}
+      msfs_version: ${{ steps.version.outputs.msfs_version }}
       windows_tag: ${{ steps.version.outputs.windows_tag }}
       mac_tag: ${{ steps.version.outputs.mac_tag }}
       msfs_tag: ${{ steps.version.outputs.msfs_tag }}
@@ -71,6 +74,31 @@ jobs:
         run: |
           set -euo pipefail
 
+          next_version() {
+            local highest
+
+            highest="$(
+              git tag -l "$@" \
+                | sed -E 's/^(win-|mac-|msfs-)?v//' \
+                | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+                | sort -V \
+                | tail -n 1 \
+                || true
+            )"
+            highest="${highest:-0.0.0}"
+
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$highest"
+            echo "${MAJOR}.${MINOR}.$((PATCH + 1))"
+          }
+
+          assert_available() {
+            local tag="$1"
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "::error::Tag $tag already exists. Pick another version or leave the input blank."
+              exit 1
+            fi
+          }
+
           if [[ -n "$REQUESTED_VERSION" ]]; then
             VERSION="${REQUESTED_VERSION#v}"
 
@@ -78,86 +106,60 @@ jobs:
               echo "::error::Version must be MAJOR.MINOR.PATCH, for example 1.0.7. Got '$REQUESTED_VERSION'."
               exit 1
             fi
-          else
-            # Consider every track, plus the legacy `v*` tags, and take the single
-            # highest version. Sorting the bare numbers keeps the three tracks on
-            # one shared version line, so win-v1.0.7 / mac-v1.0.7 / msfs-v1.0.7
-            # always describe the same commit.
-            #
-            # `git tag --sort` is used rather than `git describe`, which only sees
-            # tags reachable from HEAD: after the branch consolidation that made it
-            # report v1.0.2 while v1.0.6 already existed, so every run then died on
-            # "fatal: tag 'v1.0.3' already exists".
-            HIGHEST="$(
-              git tag -l 'v*' 'win-v*' 'mac-v*' 'msfs-v*' \
-                | sed -E 's/^(win-|mac-|msfs-)?v//' \
-                | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
-                | sort -V \
-                | tail -n 1
-            )"
-            HIGHEST="${HIGHEST:-0.0.0}"
 
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$HIGHEST"
-            VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            WINDOWS_VERSION="$VERSION"
+            MAC_VERSION="$VERSION"
+            MSFS_VERSION="$VERSION"
+          else
+            # Legacy unprefixed v tags belong to the Windows release line.
+            # Mac and MSFS each start from their own prefixed tag history.
+            WINDOWS_VERSION="$(next_version 'v*' 'win-v*')"
+            MAC_VERSION="$(next_version 'mac-v*')"
+            MSFS_VERSION="$(next_version 'msfs-v*')"
           fi
 
-          # Never reuse a version where ANY of the three tags is already taken, so
-          # a half-finished earlier release can not make this run fail.
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          while true; do
-            CANDIDATE="${MAJOR}.${MINOR}.${PATCH}"
-            COLLISION=false
+          WINDOWS_TAG="win-v$WINDOWS_VERSION"
+          MAC_TAG="mac-v$MAC_VERSION"
+          MSFS_TAG="msfs-v$MSFS_VERSION"
 
-            for PREFIX in win-v mac-v msfs-v; do
-              if git rev-parse -q --verify "refs/tags/${PREFIX}${CANDIDATE}" >/dev/null; then
-                COLLISION=true
-                break
-              fi
-            done
+          assert_available "$WINDOWS_TAG"
+          assert_available "$MAC_TAG"
+          assert_available "$MSFS_TAG"
 
-            if [[ "$COLLISION" == false ]]; then
-              break
-            fi
-
-            if [[ -n "$REQUESTED_VERSION" ]]; then
-              echo "::error::Version $CANDIDATE is already released. Delete its tags or pick another version."
-              exit 1
-            fi
-
-            PATCH=$((PATCH + 1))
-          done
-
-          VERSION="$CANDIDATE"
-          echo "Releasing version $VERSION"
+          echo "Releasing Windows $WINDOWS_VERSION, macOS $MAC_VERSION, MSFS 2020 $MSFS_VERSION"
 
           {
-            echo "version=$VERSION"
-            echo "windows_tag=win-v$VERSION"
-            echo "mac_tag=mac-v$VERSION"
-            echo "msfs_tag=msfs-v$VERSION"
+            echo "windows_version=$WINDOWS_VERSION"
+            echo "mac_version=$MAC_VERSION"
+            echo "msfs_version=$MSFS_VERSION"
+            echo "windows_tag=$WINDOWS_TAG"
+            echo "mac_tag=$MAC_TAG"
+            echo "msfs_tag=$MSFS_TAG"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create and push the three tags
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          WINDOWS_TAG: ${{ steps.version.outputs.windows_tag }}
+          MAC_TAG: ${{ steps.version.outputs.mac_tag }}
+          MSFS_TAG: ${{ steps.version.outputs.msfs_tag }}
         run: |
           set -euo pipefail
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          for PREFIX in win-v mac-v msfs-v; do
-            git tag "${PREFIX}${VERSION}"
+          for TAG in "$WINDOWS_TAG" "$MAC_TAG" "$MSFS_TAG"; do
+            git tag "$TAG"
           done
 
           # One atomic push: if any tag is rejected, none are created, so the
-          # three tracks can never drift apart.
+          # three platform tags always point at the same source commit.
           git push --atomic origin \
-            "win-v${VERSION}" \
-            "mac-v${VERSION}" \
-            "msfs-v${VERSION}"
+            "$WINDOWS_TAG" \
+            "$MAC_TAG" \
+            "$MSFS_TAG"
 
-          echo "Created win-v${VERSION}, mac-v${VERSION}, and msfs-v${VERSION}."
+          echo "Created $WINDOWS_TAG, $MAC_TAG, and $MSFS_TAG."
 
   # ---------------------------------------------------------------------------
   # JOBS 2-4: One independent release per platform. They run in parallel, and
@@ -207,7 +209,12 @@ jobs:
     steps:
       - name: Report per-platform results
         env:
-          VERSION: ${{ needs.tag.outputs.version }}
+          WINDOWS_VERSION: ${{ needs.tag.outputs.windows_version }}
+          MAC_VERSION: ${{ needs.tag.outputs.mac_version }}
+          MSFS_VERSION: ${{ needs.tag.outputs.msfs_version }}
+          WINDOWS_TAG: ${{ needs.tag.outputs.windows_tag }}
+          MAC_TAG: ${{ needs.tag.outputs.mac_tag }}
+          MSFS_TAG: ${{ needs.tag.outputs.msfs_tag }}
           WINDOWS_RESULT: ${{ needs.windows.result }}
           MACOS_RESULT: ${{ needs.macos.result }}
           MSFS_RESULT: ${{ needs.msfs.result }}
@@ -215,13 +222,13 @@ jobs:
           set -euo pipefail
 
           {
-            echo "## Release $VERSION"
+            echo "## Platform releases"
             echo ""
-            echo "| Platform | Tag | Result |"
-            echo "| --- | --- | --- |"
-            echo "| Windows | \`win-v$VERSION\` | $WINDOWS_RESULT |"
-            echo "| macOS | \`mac-v$VERSION\` | $MACOS_RESULT |"
-            echo "| MSFS 2020 | \`msfs-v$VERSION\` | $MSFS_RESULT |"
+            echo "| Platform | Version | Tag | Result |"
+            echo "| --- | --- | --- | --- |"
+            echo "| Windows | $WINDOWS_VERSION | \`$WINDOWS_TAG\` | $WINDOWS_RESULT |"
+            echo "| macOS | $MAC_VERSION | \`$MAC_TAG\` | $MACOS_RESULT |"
+            echo "| MSFS 2020 | $MSFS_VERSION | \`$MSFS_TAG\` | $MSFS_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [[ "$WINDOWS_RESULT" != "success" || "$MACOS_RESULT" != "success" || "$MSFS_RESULT" != "success" ]]; then
@@ -229,4 +236,4 @@ jobs:
             exit 1
           fi
 
-          echo "All three releases published for $VERSION."
+          echo "All three platform releases published."

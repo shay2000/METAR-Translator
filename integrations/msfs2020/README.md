@@ -147,10 +147,10 @@ The SDK-backed workflow is manual because `fspackagetool.exe` requires an instal
 MSFS 2020 SDK. Start it from the repository's **Actions** tab with **Run workflow**
 using the `main` branch, then download the ZIP from the completed run's **Artifacts**
 section. To publish the ZIP as a downloadable GitHub Release asset, push a version tag
-such as:
+such as the current track version:
 
 ```text
-msfs-v1.0.0
+msfs-v1.0.1
 ```
 
 After the workflow succeeds:

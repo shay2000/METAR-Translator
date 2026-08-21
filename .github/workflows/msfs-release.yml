@@ -89,7 +89,8 @@ jobs:
         run: node tools/validate-source.mjs .
 
       - name: Build Community package ZIP
-        run: python3 integrations/msfs2020/tools/build-community-package.py
+        run: python3 integrations/msfs2020/tools/build-community-package.py \
+          --version "${{ steps.release.outputs.version }}"
 
       - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4

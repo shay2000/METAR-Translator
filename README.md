@@ -5,8 +5,8 @@
 [![Latest release](https://img.shields.io/github/v/release/shay2000/METAR-Translator?sort=semver&label=latest)](https://github.com/shay2000/METAR-Translator/releases/latest)
 
 [![Windows](https://img.shields.io/badge/Windows-x64%20.exe-0078D6?logo=windows&logoColor=white)](https://github.com/shay2000/METAR-Translator/releases/tag/win-v1.0.7)
-[![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20.dmg-000000?logo=apple&logoColor=white)](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.7)
-[![MSFS 2020](https://img.shields.io/badge/MSFS%202020-in--game%20toolbar%20panel-1f6feb)](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.7)
+[![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20.dmg-000000?logo=apple&logoColor=white)](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.0)
+[![MSFS 2020](https://img.shields.io/badge/MSFS%202020-in--game%20toolbar%20panel-1f6feb)](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.1)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](global.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -35,14 +35,16 @@ parsing fix benefits every version at once.
 | Version | What it is | Runs on | Release to download |
 | --- | --- | --- | --- |
 | 🪟 **Windows desktop app** | Standalone window on your desktop. Nothing to install — one self-contained `.exe`. | Windows 10/11 (x64) | [**METAR Viewer for Windows 1.0.7**](https://github.com/shay2000/METAR-Translator/releases/tag/win-v1.0.7) |
-| 🍎 **macOS desktop app** | Standalone `.app` in a disk image, for Apple Silicon *and* Intel. | macOS 14+ | [**METAR Viewer for Mac 1.0.7**](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.7) |
-| ✈️ **MSFS 2020 panel** | Weather panel *inside* the simulator, opened from the in-game toolbar. | MSFS 2020 on PC | [**METAR Viewer for MSFS 2020 1.0.7**](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.7) |
+| 🍎 **macOS desktop app** | Standalone `.app` in a disk image, for Apple Silicon *and* Intel. | macOS 14+ | [**METAR Viewer for Mac 1.0.0**](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.0) |
+| ✈️ **MSFS 2020 panel** | Weather panel *inside* the simulator, opened from the in-game toolbar. | MSFS 2020 on PC | [**METAR Viewer for MSFS 2020 1.0.1**](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.1) |
 
 Each version is published as its **own** release. The current platform releases are
 [Windows 1.0.7](https://github.com/shay2000/METAR-Translator/releases/tag/win-v1.0.7),
-[Mac 1.0.7](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.7), and
-[MSFS 2020 1.0.7](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.7).
-Matching version numbers across the three releases are built from the same commit.
+[Mac 1.0.0](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.0), and
+[MSFS 2020 1.0.1](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.1).
+Each platform maintains its own version sequence, while the three tags identify builds
+from their exact release source snapshots. Future coordinated releases create all three
+tags from the same `main` commit.
 
 Pick a desktop app if you want to look up weather on its own; pick the MSFS package if
 you want weather without leaving the cockpit. Installing one does not affect the others.
@@ -65,7 +67,7 @@ code-signed. Choose **More info → Run anyway** if you trust the download.
 
 ### 🍎 macOS desktop app
 
-1. Open the [METAR Viewer for Mac 1.0.7 release](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.7)
+1. Open the [METAR Viewer for Mac 1.0.0 release](https://github.com/shay2000/METAR-Translator/releases/tag/mac-v1.0.0)
    and download the disk image for your Mac:
    - `METAR-Viewer-Mac-Apple-Silicon-<version>.dmg` for M-series Macs.
    - `METAR-Viewer-Mac-Intel-<version>.dmg` for Intel Macs.
@@ -86,7 +88,7 @@ The panel asks the simulator for weather first, falls back to the VATSIM METAR A
 the simulator has no report, and decodes everything locally.
 
 Download `metar-viewer-toolbar.zip` from the
-[METAR Viewer for MSFS 2020 1.0.7 release](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.7),
+[METAR Viewer for MSFS 2020 1.0.1 release](https://github.com/shay2000/METAR-Translator/releases/tag/msfs-v1.0.1),
 or grab it from the
 [Flightsim.to page](https://flightsim.to/addon/106602/metar-translator).
 
@@ -287,8 +289,8 @@ maintainer workflow.
 
 ## Releases
 
-Each platform gets its **own** GitHub Release, so the Releases page lists three clearly
-labelled downloads per version instead of one release with three files inside it:
+Each platform gets its **own** GitHub Release and maintains an independent version
+sequence, so the Releases page lists clearly labelled downloads for each track:
 
 | Release | Tag | Workflow | Asset | Runner |
 | --- | --- | --- | --- | --- |
@@ -299,9 +301,10 @@ labelled downloads per version instead of one release with three files inside it
 `release.yml` ("Release all platforms") is the entry point. Every code push to `main`,
 or a manual **Actions → Release all platforms → Run workflow**, will:
 
-1. Pick the next version (or use the one you type in), skipping any already tagged.
+1. Pick the next patch version independently for Windows, Mac, and MSFS (or use the
+   optional shared version override), skipping any already tagged.
 2. Create `win-v*`, `mac-v*`, and `msfs-v*` in a single atomic push, so the three
-   tracks always describe the same commit.
+   tags describe the same source commit even when their version numbers differ.
 3. Call the three platform workflows in parallel, each publishing its own release.
 
 The Windows release carries the **Latest** badge; the other two are published with
