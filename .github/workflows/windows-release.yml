@@ -1,0 +1,176 @@
+name: Publish Windows Release
+
+# Publishes the Windows .exe as its own GitHub release, separate from the macOS
+# (mac-v*) and MSFS 2020 (msfs-v*) release tracks.
+#
+# This is the Windows half of what release.yml used to ship as a single combined
+# release. Each platform now owns exactly one release, so a user landing on the
+# Releases page sees three clearly labelled downloads instead of one release with
+# three files in it.
+#
+# The shipped app is MetarViewer.App.Avalonia, not MetarViewer.App.WinUI: the
+# Avalonia project is the one that publishes as a self-contained single file.
+
+on:
+  push:
+    tags:
+      - "win-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Windows release tag, for example win-v1.0.7"
+        required: true
+        type: string
+  # Lets release.yml drive this workflow directly. Calling it is what makes the
+  # release work at all: a tag pushed by GITHUB_TOKEN never raises a `push` event,
+  # so the tag trigger above cannot fire for automated tags.
+  workflow_call:
+    inputs:
+      tag:
+        description: "Windows release tag, for example win-v1.0.7"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Windows .exe
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Resolved before checkout so a bad tag fails in seconds. `inputs.tag` is
+      # set for workflow_dispatch and workflow_call, and empty for a tag push.
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+
+          if [[ ! "$TAG" =~ ^win-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Windows release tags must match win-vMAJOR.MINOR.PATCH, for example win-v1.0.7. Got '$TAG'."
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#win-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'global.json') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Test solution
+        run: dotnet test MetarViewer.sln --configuration Release
+
+      - name: Build self-contained Windows .exe
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # IncludeNativeLibrariesForSelfExtract is REQUIRED: Avalonia ships native
+          # SkiaSharp/HarfBuzz libraries, and without it the single .exe fails to
+          # start on a clean machine.
+          dotnet publish src/MetarViewer.App.Avalonia/MetarViewer.App.Avalonia.csproj \
+            --configuration Release \
+            --runtime win-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:EnableCompressionInSingleFile=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:ContinuousIntegrationBuild=true \
+            -p:Version="$VERSION" \
+            --output artifacts/windows-publish
+
+          mkdir -p release-assets
+          mv "artifacts/windows-publish/MetarViewer.exe" \
+             "release-assets/METAR-Viewer-Windows-x64-${VERSION}.exe"
+
+          # Fail loudly instead of publishing an empty release asset.
+          test -s "release-assets/METAR-Viewer-Windows-x64-${VERSION}.exe"
+          ls -lh release-assets
+
+      - name: Upload .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metar-viewer-windows-x64-${{ steps.release.outputs.version }}
+          path: release-assets/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create or update the Windows release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          NOTES="$(cat <<'MARKDOWN'
+          Windows release of METAR Viewer.
+
+          ## Install
+
+          1. Download the `.exe` below.
+          2. Double-click it to run. There is no installer, and no .NET runtime is
+             required: everything is bundled into the single file.
+          3. Windows SmartScreen may warn about an unrecognised app because this
+             build is not code-signed. Choose **More info** then **Run anyway**.
+
+          Looking for a different platform? The macOS `.dmg` and the MSFS 2020
+          toolbar `.zip` are published as their own separate releases on the
+          Releases page.
+
+          ## Notes
+
+          - 64-bit Windows 10 and 11 only.
+          - **Simulation use only.** Never use this for real-world aviation, flight
+            planning, navigation, or weather decisions.
+          MARKDOWN
+          )"
+
+          # Windows is the repository's headline download, so this track owns the
+          # "Latest" badge. mac-release.yml and msfs-release.yml both pass
+          # --latest=false so the three tracks stay independent.
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --latest \
+              --title "METAR Viewer for Windows $VERSION" \
+              --notes "$NOTES"
+          fi
+
+          gh release upload "$RELEASE_TAG" release-assets/*.exe \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
+
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"

@@ -1,352 +1,232 @@
-name: Release (Windows + macOS + MSFS 2020)
+name: Release all platforms
 
-# Publishes ONE public GitHub Release per `v*` tag containing three assets:
-#   1. METAR-Viewer-Windows-x64-<version>.exe        (self-contained Windows app)
-#   2. METAR-Viewer-Mac-Apple-Silicon-<version>.dmg  (signed + verified macOS installer)
-#   3. METAR-Viewer-MSFS2020-Community-<version>.zip (MSFS 2020 Community package)
+# Creates the version tags and then publishes THREE separate GitHub Releases:
 #
-# NOTE ON THE OTHER RELEASE TRACKS:
-# This repository also has mac-release.yml (mac-v* tags) and msfs-release.yml
-# (msfs-v* tags). Those tag patterns do NOT match `v*`, so nothing double-publishes.
-# This workflow now supersedes them by shipping all three platforms on one tag; the
-# older per-platform workflows can be deleted once you are happy with this one.
+#   win-vX.Y.Z   -> METAR Viewer for Windows      (.exe)   windows-release.yml
+#   mac-vX.Y.Z   -> METAR Viewer for Mac          (.dmg)   mac-release.yml
+#   msfs-vX.Y.Z  -> METAR Viewer for MSFS 2020    (.zip)   msfs-release.yml
+#
+# WHY THIS WORKFLOW CALLS THE OTHERS INSTEAD OF JUST PUSHING TAGS
+# GitHub deliberately does NOT raise workflow-triggering events for refs created
+# with the default GITHUB_TOKEN, to stop workflows recursively triggering
+# themselves. The previous auto-release.yml pushed a `v*` tag and expected the
+# tag-triggered release workflow to pick it up; that never happened, which is why
+# v1.0.3 through v1.0.6 were tagged but only ever released by hand. Using
+# `workflow_call` invokes each platform workflow in-process, so no event delivery
+# is involved and no personal access token is needed.
+#
+# Each platform workflow keeps its own `push: tags:` trigger, so pushing a tag
+# manually (`git push origin mac-v1.2.3`) still releases just that one platform.
 
 on:
+  # Every code change to main ships all three platforms.
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Existing tag to build and release, for example v1.0.7"
-        required: true
+      version:
+        description: "Version to release, for example 1.0.7. Leave blank to bump the patch automatically."
+        required: false
         type: string
 
-# `contents: write` is required to create the release and upload its assets.
 permissions:
-  contents: write
+  contents: read
 
-# Never let two runs publish assets to the same tag at the same time.
+# Serialised: two concurrent runs would race to allocate the same version number.
 concurrency:
-  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  group: release-all
   cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------------------
-  # JOB 1: Build the native desktop apps on their own operating systems.
+  # JOB 1: Allocate one version number and create all three tags up front, so
+  # the platform jobs below can each check out a tag that already exists.
   # ---------------------------------------------------------------------------
-  build-apps:
-    name: Build ${{ matrix.platform }} app
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            runtime: win-x64
-          # macos-latest is Apple Silicon. To also ship an Intel DMG, add:
-          #   - os: macos-13
-          #     platform: macos-intel
-          #     runtime: osx-x64
-          - os: macos-latest
-            platform: macos
-            runtime: osx-arm64
+  tag:
+    name: Create release tags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      windows_tag: ${{ steps.version.outputs.windows_tag }}
+      mac_tag: ${{ steps.version.outputs.mac_tag }}
+      msfs_tag: ${{ steps.version.outputs.msfs_tag }}
 
     steps:
-      - name: Check out the tagged source
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0  # Need full history so every existing tag is visible.
 
-      # Runs on both OSes, so pin bash explicitly (Windows defaults to pwsh).
-      - name: Resolve version from tag
+      - name: Resolve the next version
         id: version
-        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
 
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "::error::Tag '$TAG' must look like v1.2.3 (optionally with a suffix such as v1.2.3-rc1)."
-            exit 1
+          if [[ -n "$REQUESTED_VERSION" ]]; then
+            VERSION="${REQUESTED_VERSION#v}"
+
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Version must be MAJOR.MINOR.PATCH, for example 1.0.7. Got '$REQUESTED_VERSION'."
+              exit 1
+            fi
+          else
+            # Consider every track, plus the legacy `v*` tags, and take the single
+            # highest version. Sorting the bare numbers keeps the three tracks on
+            # one shared version line, so win-v1.0.7 / mac-v1.0.7 / msfs-v1.0.7
+            # always describe the same commit.
+            #
+            # `git tag --sort` is used rather than `git describe`, which only sees
+            # tags reachable from HEAD: after the branch consolidation that made it
+            # report v1.0.2 while v1.0.6 already existed, so every run then died on
+            # "fatal: tag 'v1.0.3' already exists".
+            HIGHEST="$(
+              git tag -l 'v*' 'win-v*' 'mac-v*' 'msfs-v*' \
+                | sed -E 's/^(win-|mac-|msfs-)?v//' \
+                | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+                | sort -V \
+                | tail -n 1
+            )"
+            HIGHEST="${HIGHEST:-0.0.0}"
+
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$HIGHEST"
+            VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
           fi
 
-          VERSION="${TAG#v}"
-          # scripts/package-macos.sh accepts ONLY three numeric components, so strip
-          # any prerelease suffix for the bundle version while keeping the full tag
-          # for human-facing file names.
-          BASE_VERSION="$(echo "$VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')"
+          # Never reuse a version where ANY of the three tags is already taken, so
+          # a half-finished earlier release can not make this run fail.
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          while true; do
+            CANDIDATE="${MAJOR}.${MINOR}.${PATCH}"
+            COLLISION=false
 
-          echo "tag=$TAG"                   >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION"           >> "$GITHUB_OUTPUT"
-          echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Building $TAG (version $VERSION, bundle version $BASE_VERSION)"
+            for PREFIX in win-v mac-v msfs-v; do
+              if git rev-parse -q --verify "refs/tags/${PREFIX}${CANDIDATE}" >/dev/null; then
+                COLLISION=true
+                break
+              fi
+            done
 
-      - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
+            if [[ "$COLLISION" == false ]]; then
+              break
+            fi
 
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'global.json') }}
-          restore-keys: ${{ runner.os }}-nuget-
+            if [[ -n "$REQUESTED_VERSION" ]]; then
+              echo "::error::Version $CANDIDATE is already released. Delete its tags or pick another version."
+              exit 1
+            fi
 
-      - name: Run tests
-        run: dotnet test MetarViewer.sln --configuration Release
+            PATCH=$((PATCH + 1))
+          done
 
-      # -----------------------------------------------------------------------
-      # WINDOWS BUILD
-      # TODO: This produces a working self-contained single-file .exe today.
-      # TODO: Paste any extra Windows build logic (signing, versioning, installer)
-      # TODO: here or immediately after this step.
-      # -----------------------------------------------------------------------
-      - name: Build Windows .exe
-        if: matrix.platform == 'windows'
-        shell: bash
+          VERSION="$CANDIDATE"
+          echo "Releasing version $VERSION"
+
+          {
+            echo "version=$VERSION"
+            echo "windows_tag=win-v$VERSION"
+            echo "mac_tag=mac-v$VERSION"
+            echo "msfs_tag=msfs-v$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create and push the three tags
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
 
-          # IncludeNativeLibrariesForSelfExtract is REQUIRED: Avalonia ships native
-          # SkiaSharp/HarfBuzz libraries, and without it the single .exe fails to
-          # start on a clean machine.
-          dotnet publish src/MetarViewer.App.Avalonia/MetarViewer.App.Avalonia.csproj \
-            --configuration Release \
-            --runtime "${{ matrix.runtime }}" \
-            --self-contained true \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:EnableCompressionInSingleFile=true \
-            -p:DebugType=None \
-            -p:DebugSymbols=false \
-            -p:ContinuousIntegrationBuild=true \
-            -p:Version="${VERSION%%-*}" \
-            --output artifacts/windows-publish
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          mkdir -p artifacts/windows
-          mv "artifacts/windows-publish/MetarViewer.exe" \
-             "artifacts/windows/METAR-Viewer-Windows-x64-${VERSION}.exe"
+          for PREFIX in win-v mac-v msfs-v; do
+            git tag "${PREFIX}${VERSION}"
+          done
 
-          # Fail loudly instead of publishing an empty release asset.
-          test -s "artifacts/windows/METAR-Viewer-Windows-x64-${VERSION}.exe"
-          ls -lh artifacts/windows
+          # One atomic push: if any tag is rejected, none are created, so the
+          # three tracks can never drift apart.
+          git push --atomic origin \
+            "win-v${VERSION}" \
+            "mac-v${VERSION}" \
+            "msfs-v${VERSION}"
 
-      # -----------------------------------------------------------------------
-      # MACOS BUILD
-      # This delegates to the repository's existing packaging script, which
-      # publishes the app, builds the .app bundle, code-signs it, creates the
-      # .dmg, and then re-mounts and verifies the result.
-      # TODO: For a Developer-ID signed + notarized build, set the
-      # TODO: MACOS_SIGNING_IDENTITY secret and import the certificate here.
-      # TODO: Without it the script falls back to an ad-hoc signature.
-      # -----------------------------------------------------------------------
-      - name: Build macOS .dmg
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bash scripts/package-macos.sh \
-            "${{ matrix.runtime }}" \
-            "${{ steps.version.outputs.base_version }}" \
-            "$GITHUB_RUN_NUMBER" \
-            "artifacts/macos"
-
-          ls -lh artifacts/macos
-
-      # upload-artifact@v4 requires a unique name per job, so key it on the
-      # matrix platform. Only the installers are kept; the .sha256 sidecar stays
-      # out so the release contains exactly three assets.
-      - name: Upload ${{ matrix.platform }} installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-${{ matrix.platform }}
-          path: |
-            artifacts/windows/*.exe
-            artifacts/macos/*.dmg
-          if-no-files-found: error
-          retention-days: 7
+          echo "Created win-v${VERSION}, mac-v${VERSION}, and msfs-v${VERSION}."
 
   # ---------------------------------------------------------------------------
-  # JOB 2: Package the MSFS mod, then publish everything as one release.
+  # JOBS 2-4: One independent release per platform. They run in parallel, and
+  # `fail-fast` does not apply across jobs, so a Windows build failure still
+  # lets the Mac and MSFS releases publish.
   # ---------------------------------------------------------------------------
-  publish-release:
-    name: Publish GitHub Release
-    needs: build-apps
+  windows:
+    name: Windows release
+    needs: tag
+    uses: ./.github/workflows/windows-release.yml
+    permissions:
+      contents: write
+    with:
+      tag: ${{ needs.tag.outputs.windows_tag }}
+
+  macos:
+    name: macOS release
+    needs: tag
+    uses: ./.github/workflows/mac-release.yml
+    permissions:
+      contents: write
+    with:
+      tag: ${{ needs.tag.outputs.mac_tag }}
+
+  msfs:
+    name: MSFS 2020 release
+    needs: tag
+    uses: ./.github/workflows/msfs-release.yml
+    permissions:
+      contents: write
+    with:
+      tag: ${{ needs.tag.outputs.msfs_tag }}
+
+  # ---------------------------------------------------------------------------
+  # JOB 5: Summarise what shipped, and fail if any track did not publish.
+  # ---------------------------------------------------------------------------
+  summary:
+    name: Release summary
+    if: always()
+    needs:
+      - tag
+      - windows
+      - macos
+      - msfs
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out the tagged source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
-          fetch-depth: 0
-
-      - name: Resolve version from tag
-        id: version
-        run: |
-          set -euo pipefail
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          VERSION="${TAG#v}"
-
-          # Anything after MAJOR.MINOR.PATCH marks this as a prerelease.
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Download built installers
-        uses: actions/download-artifact@v4
-        with:
-          pattern: app-*
-          path: release-assets
-          merge-multiple: true
-
-      - name: Set up Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Validate MSFS 2020 panel sources
-        working-directory: integrations/msfs2020
-        run: |
-          set -euo pipefail
-          node --test
-          node tools/validate-source.mjs .
-
-      # -----------------------------------------------------------------------
-      # Build the MSFS 2020 Community package .zip.
-      # The SDK-free packager stages PackageSources/, generates manifest.json and
-      # layout.json, and zips it so extraction yields
-      # Community/metar-viewer-toolbar/. The inner folder name must stay exactly
-      # `metar-viewer-toolbar` for the simulator, so only the outer .zip is renamed.
-      # -----------------------------------------------------------------------
-      - name: Package MSFS 2020 mod as .zip
+      - name: Report per-platform results
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.tag.outputs.version }}
+          WINDOWS_RESULT: ${{ needs.windows.result }}
+          MACOS_RESULT: ${{ needs.macos.result }}
+          MSFS_RESULT: ${{ needs.msfs.result }}
         run: |
           set -euo pipefail
 
-          python3 integrations/msfs2020/tools/build-community-package.py \
-            --output-dir builds
+          {
+            echo "## Release $VERSION"
+            echo ""
+            echo "| Platform | Tag | Result |"
+            echo "| --- | --- | --- |"
+            echo "| Windows | \`win-v$VERSION\` | $WINDOWS_RESULT |"
+            echo "| macOS | \`mac-v$VERSION\` | $MACOS_RESULT |"
+            echo "| MSFS 2020 | \`msfs-v$VERSION\` | $MSFS_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          mv "builds/metar-viewer-toolbar.zip" \
-             "release-assets/METAR-Viewer-MSFS2020-Community-${VERSION}.zip"
-
-      - name: Verify all three assets are present
-        id: assets
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-
-          EXE=(release-assets/*.exe)
-          DMG=(release-assets/*.dmg)
-          ZIP=(release-assets/*.zip)
-
-          for label in EXE DMG ZIP; do
-            eval "count=\${#$label[@]}"
-            if [[ "$count" -ne 1 ]]; then
-              echo "::error::Expected exactly one $label asset but found $count."
-              ls -lR release-assets
-              exit 1
-            fi
-          done
-
-          # Publish the real file names so the release notes can never drift from
-          # what actually ships (the macOS script drops prerelease suffixes).
-          echo "exe_name=$(basename "${EXE[0]}")" >> "$GITHUB_OUTPUT"
-          echo "dmg_name=$(basename "${DMG[0]}")" >> "$GITHUB_OUTPUT"
-          echo "zip_name=$(basename "${ZIP[0]}")" >> "$GITHUB_OUTPUT"
-
-          ls -lh release-assets
-
-      - name: Create the public GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          PRERELEASE: ${{ steps.version.outputs.prerelease }}
-          EXE_NAME: ${{ steps.assets.outputs.exe_name }}
-          DMG_NAME: ${{ steps.assets.outputs.dmg_name }}
-          ZIP_NAME: ${{ steps.assets.outputs.zip_name }}
-        run: |
-          set -euo pipefail
-
-          NOTES="$(cat <<'MARKDOWN'
-          ## Which file should I download?
-
-          | You are using | Download | How to install |
-          | --- | --- | --- |
-          | **Windows 10/11** | `EXE_PLACEHOLDER` | Double-click to run. No installer and no .NET runtime needed. |
-          | **macOS (Apple Silicon)** | `DMG_PLACEHOLDER` | Open the .dmg and drag **METAR Viewer** into Applications. |
-          | **Microsoft Flight Simulator 2020** | `ZIP_PLACEHOLDER` | See the Community folder steps below. |
-
-          ### Flight simulator users: install the `.zip`
-
-          If you fly in **MSFS 2020** and want METAR in the in-game toolbar, download
-          the **`.zip`** — not the `.exe` or `.dmg`.
-
-          1. Close MSFS 2020.
-          2. Extract the `.zip` into your **Community** folder so that
-             `Community/metar-viewer-toolbar/manifest.json` exists.
-          3. Start MSFS 2020, begin a flight, and open **METAR Viewer** from the
-             toolbar. The icon may be hidden in the toolbar overflow menu.
-
-          Do not nest the package inside an extra folder, and do not copy the
-          repository sources into `Community`.
-
-          ### Notes
-
-          - The macOS build uses an ad-hoc signature. On first launch, Control-click
-            the app and choose **Open**.
-          - The MSFS package is built without the MSFS 2020 SDK, so the toolbar
-            registration ships as XML under the `.spb` name the simulator expects.
-          - **Simulation use only.** Never use this for real-world aviation, flight
-            planning, navigation, or weather decisions.
-          MARKDOWN
-          )"
-
-          # Substitute the real asset names after the fact so the quoted heredoc
-          # above stays literal (no accidental shell expansion in the markdown).
-          NOTES="${NOTES//EXE_PLACEHOLDER/$EXE_NAME}"
-          NOTES="${NOTES//DMG_PLACEHOLDER/$DMG_NAME}"
-          NOTES="${NOTES//ZIP_PLACEHOLDER/$ZIP_NAME}"
-
-          PRERELEASE_FLAG=""
-          if [[ "$PRERELEASE" == "true" ]]; then
-            PRERELEASE_FLAG="--prerelease"
+          if [[ "$WINDOWS_RESULT" != "success" || "$MACOS_RESULT" != "success" || "$MSFS_RESULT" != "success" ]]; then
+            echo "::error::At least one platform release did not publish. See the table in the run summary."
+            exit 1
           fi
 
-          # Push all three assets in a single call. If a previous run already
-          # created this tag's release, replace the assets instead of failing.
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; updating its assets."
-            gh release upload "$TAG" \
-              release-assets/*.exe \
-              release-assets/*.dmg \
-              release-assets/*.zip \
-              --clobber \
-              --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create "$TAG" \
-              release-assets/*.exe \
-              release-assets/*.dmg \
-              release-assets/*.zip \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "METAR Viewer $VERSION" \
-              --notes "$NOTES" \
-              $PRERELEASE_FLAG
-          fi
-
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
+          echo "All three releases published for $VERSION."

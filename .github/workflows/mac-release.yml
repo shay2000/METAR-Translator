@@ -1,21 +1,16 @@
-name: Build macOS Release
+name: Publish macOS Release
+
+# Publishes the macOS .dmg files as their own GitHub release, separate from the
+# Windows (win-v*) and MSFS 2020 (msfs-v*) release tracks.
+#
+# There is deliberately no push-to-main trigger: release.yml runs on every push
+# to main and calls this workflow, so a branch trigger here would build and test
+# the same commit twice on every push.
 
 on:
   push:
-    branches:
-      # All versions now live on main; Mac-Version is a historical backup.
-      - main
     tags:
       - "mac-v*"
-    paths:
-      - ".github/workflows/mac-release.yml"
-      - "packaging/macos/**"
-      - "scripts/package-macos.sh"
-      - "src/**"
-      - "tests/**"
-      - "Directory.Build.props"
-      - "global.json"
-      - "MetarViewer.sln"
   workflow_dispatch:
     inputs:
       tag:
@@ -23,12 +18,23 @@ on:
         required: true
         type: string
 
+  # Lets release.yml drive this workflow directly. Calling it is what makes the
+  # release work at all: a tag pushed by GITHUB_TOKEN never raises a `push` event,
+  # so the mac-v* tag trigger above cannot fire for automated tags.
+  workflow_call:
+    inputs:
+      tag:
+        description: "Mac release tag, for example mac-v1.0.0"
+        required: true
+        type: string
+
 concurrency:
-  group: macos-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+  group: macos-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
+
 
 jobs:
   test:
@@ -44,7 +50,10 @@ jobs:
       - name: Check out Mac source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
+          # A supplied tag means "release this tag": check out main with full
+          # history and detach onto the tag below. Otherwise build whatever ref
+          # triggered the run.
+          ref: ${{ inputs.tag != '' && 'main' || github.ref }}
           fetch-depth: 0
 
       - name: Resolve build version
@@ -54,7 +63,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+          # Keyed on the tag input rather than on GITHUB_EVENT_NAME, because under
+          # workflow_call the event name is the CALLER's event (a push, say), which
+          # would otherwise misread a release as an ordinary branch build.
+          if [[ -n "$DISPATCH_TAG" ]]; then
             TAG="$DISPATCH_TAG"
             IS_RELEASE=true
           elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
@@ -72,12 +84,13 @@ jobs:
             }
             VERSION="${TAG#mac-v}"
 
-            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] &&
+            if [[ -n "$DISPATCH_TAG" ]] &&
                git rev-parse --verify --quiet "refs/tags/$TAG^{commit}" >/dev/null; then
               git checkout --detach "$TAG"
             fi
 
             git fetch origin main
+
             SOURCE_SHA="$(git rev-parse HEAD)"
             git merge-base --is-ancestor "$SOURCE_SHA" origin/main || {
               echo "Mac releases must point to a commit on main." >&2

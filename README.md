@@ -32,15 +32,19 @@ parsing fix benefits every version at once.
 
 ## Which version do I want?
 
-| Version | What it is | Runs on | Get it |
+| Version | What it is | Runs on | Release to download |
 | --- | --- | --- | --- |
-| 🪟 **Windows desktop app** | Standalone window on your desktop. Nothing to install — one self-contained `.exe`. | Windows 10/11 (x64) | `METAR-Viewer-Windows-x64-*.exe` |
-| 🍎 **macOS desktop app** | Standalone `.app` in a signed disk image. | macOS on Apple Silicon | `METAR-Viewer-Mac-Apple-Silicon-*.dmg` |
-| ✈️ **MSFS 2020 panel** | Weather panel *inside* the simulator, opened from the in-game toolbar. | MSFS 2020 on PC | `METAR-Viewer-MSFS2020-Community-*.zip` |
+| 🪟 **Windows desktop app** | Standalone window on your desktop. Nothing to install — one self-contained `.exe`. | Windows 10/11 (x64) | **METAR Viewer for Windows** (`win-v*`) |
+| 🍎 **macOS desktop app** | Standalone `.app` in a disk image, for Apple Silicon *and* Intel. | macOS 14+ | **METAR Viewer for Mac** (`mac-v*`) |
+| ✈️ **MSFS 2020 panel** | Weather panel *inside* the simulator, opened from the in-game toolbar. | MSFS 2020 on PC | **METAR Viewer for MSFS 2020** (`msfs-v*`) |
 
-All three come from the same [latest release](../../releases/latest). Pick the desktop
-app if you want to look up weather on its own; pick the MSFS package if you want weather
-without leaving the cockpit. Installing one does not affect the others.
+Each version is published as its **own** release, so open the
+[Releases page](../../releases) and pick the one matching your platform. Matching version
+numbers across the three releases are built from the same commit.
+
+Pick a desktop app if you want to look up weather on its own; pick the MSFS package if
+you want weather without leaving the cockpit. Installing one does not affect the others.
+
 
 ---
 
@@ -49,17 +53,20 @@ without leaving the cockpit. Installing one does not affect the others.
 A self-contained single-file executable — no .NET runtime, installer, or admin rights
 needed.
 
-1. Download `METAR-Viewer-Windows-x64-<version>.exe` from the
-   [latest release](../../releases/latest).
+1. Download `METAR-Viewer-Windows-x64-<version>.exe` from the newest
+   **METAR Viewer for Windows** release on the [Releases page](../../releases).
 2. Double-click it.
+
 
 Windows SmartScreen may warn about an unrecognised publisher because the build is not
 code-signed. Choose **More info → Run anyway** if you trust the download.
 
 ### 🍎 macOS desktop app
 
-1. Download `METAR-Viewer-Mac-Apple-Silicon-<version>.dmg` from the
-   [latest release](../../releases/latest).
+1. Open the newest **METAR Viewer for Mac** release on the
+   [Releases page](../../releases) and download the disk image for your Mac:
+   - `METAR-Viewer-Mac-Apple-Silicon-<version>.dmg` for M-series Macs.
+   - `METAR-Viewer-Mac-Intel-<version>.dmg` for Intel Macs.
 2. Open the `.dmg` and drag **METAR Viewer** into your Applications folder.
 3. Launch it.
 
@@ -67,8 +74,6 @@ The DMG is ad-hoc signed rather than notarised, so on first launch macOS Gatekee
 refuse to open it. Right-click the app and choose **Open**, or allow it under **System
 Settings → Privacy & Security**.
 
-Intel Macs are not covered by the combined release asset. Build from source, or use the
-`mac-v*` release track, which produces both Apple Silicon and Intel disk images.
 
 ### ✈️ MSFS 2020 in-game panel
 
@@ -78,9 +83,10 @@ service, or custom installer — it is a normal MSFS Community package.
 The panel asks the simulator for weather first, falls back to the VATSIM METAR API when
 the simulator has no report, and decodes everything locally.
 
-Download `METAR-Viewer-MSFS2020-Community-<version>.zip` from the
-[latest release](../../releases/latest), or grab it from the
+Download `metar-viewer-toolbar.zip` from the newest **METAR Viewer for MSFS 2020**
+release on the [Releases page](../../releases), or grab it from the
 [Flightsim.to page](https://flightsim.to/addon/106602/metar-translator).
+
 
 > A source checkout is **not** installable on its own. `manifest.json`, `layout.json`,
 > and the toolbar registration have to be generated first — see
@@ -278,23 +284,38 @@ maintainer workflow.
 
 ## Releases
 
-Pushing a `v*` tag builds and publishes **one** GitHub Release containing all three
-assets:
+Each platform gets its **own** GitHub Release, so the Releases page lists three clearly
+labelled downloads per version instead of one release with three files inside it:
 
-| Asset | Built from | Runner |
-| --- | --- | --- |
-| `METAR-Viewer-Windows-x64-*.exe` | `src/MetarViewer.App.Avalonia` | `windows-latest` |
-| `METAR-Viewer-Mac-Apple-Silicon-*.dmg` | `src/MetarViewer.App.Avalonia` | `macos-latest` |
-| `METAR-Viewer-MSFS2020-Community-*.zip` | `integrations/msfs2020` | `ubuntu-latest` |
+| Release | Tag | Workflow | Asset | Runner |
+| --- | --- | --- | --- | --- |
+| METAR Viewer for Windows | `win-v1.2.3` | `windows-release.yml` | `METAR-Viewer-Windows-x64-*.exe` | `windows-latest` |
+| METAR Viewer for Mac | `mac-v1.2.3` | `mac-release.yml` | Apple Silicon **and** Intel `.dmg` | `macos-14` |
+| METAR Viewer for MSFS 2020 | `msfs-v1.2.3` | `msfs-release.yml` | `metar-viewer-toolbar.zip` | `ubuntu-latest` |
 
-Two older single-platform tracks still exist for targeted rebuilds, and their tag
-patterns do not match `v*`, so nothing double-publishes:
+`release.yml` ("Release all platforms") is the entry point. Every code push to `main`,
+or a manual **Actions → Release all platforms → Run workflow**, will:
 
-| Track | Tag prefix | Workflow | Notes |
-| --- | --- | --- | --- |
-| Combined (current) | `v1.2.3` | `release.yml` | All three assets on one release |
-| macOS only | `mac-v1.2.3` | `mac-release.yml` | Apple Silicon **and** Intel DMGs |
-| MSFS only | `msfs-v1.2.3` | `msfs-release.yml` | `metar-viewer-toolbar.zip` |
+1. Pick the next version (or use the one you type in), skipping any already tagged.
+2. Create `win-v*`, `mac-v*`, and `msfs-v*` in a single atomic push, so the three
+   tracks always describe the same commit.
+3. Call the three platform workflows in parallel, each publishing its own release.
+
+The Windows release carries the **Latest** badge; the other two are published with
+`--latest=false` so they do not compete for it. The three platform jobs are independent,
+so a failure in one still lets the other two publish.
+
+To rebuild a single platform, push just that tag — for example
+`git push origin mac-v1.2.3` — or dispatch that platform's workflow directly.
+
+> **Why `release.yml` calls the other workflows instead of only pushing tags.** GitHub
+> does not raise workflow-triggering events for refs created with the default
+> `GITHUB_TOKEN`, to stop workflows triggering themselves. The retired
+> `auto-release.yml` pushed a `v*` tag and expected the tag-triggered release workflow
+> to notice, which never happened — that is why `v1.0.3`–`v1.0.6` were tagged but only
+> ever released by hand. `workflow_call` invokes each platform workflow in-process, so
+> no event delivery is involved and no personal access token is required.
+
 
 ## License
 

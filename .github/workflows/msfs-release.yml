@@ -19,15 +19,25 @@ on:
         description: "MSFS release tag, for example msfs-v1.0.0"
         required: true
         type: string
+  # Lets release.yml drive this workflow directly. Calling it is what makes the
+  # release work at all: a tag pushed by GITHUB_TOKEN never raises a `push` event,
+  # so the msfs-v* tag trigger above cannot fire for automated tags.
+  workflow_call:
+    inputs:
+      tag:
+        description: "MSFS release tag, for example msfs-v1.0.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: msfs-release-${{ github.ref }}
+  group: msfs-release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
+
   release:
     name: Build and publish MSFS package
     runs-on: ubuntu-latest
@@ -35,11 +45,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
+      # Resolved before checkout so a bad tag fails in seconds.
       - name: Resolve release tag
         id: release
         env:
@@ -47,21 +53,29 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            TAG="$DISPATCH_TAG"
-          else
-            TAG="$GITHUB_REF_NAME"
-          fi
+          # Keyed on the tag input rather than on GITHUB_EVENT_NAME, because under
+          # workflow_call the event name is the CALLER's event (a push, say), which
+          # would leave TAG holding a branch name instead of the release tag.
+          TAG="${DISPATCH_TAG:-$GITHUB_REF_NAME}"
 
           if [[ ! "$TAG" =~ ^msfs-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "MSFS release tags must match msfs-vMAJOR.MINOR.PATCH, for example msfs-v1.0.0." >&2
+            echo "::error::MSFS release tags must match msfs-vMAJOR.MINOR.PATCH, for example msfs-v1.0.0. Got '$TAG'."
             exit 1
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#msfs-v}" >> "$GITHUB_OUTPUT"
 
+      # Explicitly check out the tag. Previously a dispatched run packaged the
+      # default branch regardless of the tag it was asked to release.
+      - name: Check out the tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          fetch-depth: 0
+
       - name: Set up Node.js
+
         uses: actions/setup-node@v4
         with:
           node-version: 24
