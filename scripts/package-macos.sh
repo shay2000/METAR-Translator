@@ -181,16 +181,43 @@ ditto "$app_bundle" "$dmg_root/METAR Viewer.app"
 ln -s /Applications "$dmg_root/Applications"
 codesign --verify --deep --strict --verbose=2 "$dmg_root/METAR Viewer.app"
 
-hdiutil create \
-  -volname "METAR Viewer for Mac" \
-  -srcfolder "$dmg_root" \
-  -ov \
-  -format UDZO \
-  "$staged_dmg"
+# hdiutil intermittently fails with "Resource busy" on CI runners when a
+# lingering diskimages-helper still holds the backing store. The inputs are
+# unchanged between attempts, so retrying is safe rather than papering over a
+# real packaging error.
+create_dmg() {
+  local attempt=1
+  local max_attempts=5
+
+  while true; do
+    rm -f "$staged_dmg"
+
+    if hdiutil create \
+      -volname "METAR Viewer for Mac" \
+      -srcfolder "$dmg_root" \
+      -ov \
+      -format UDZO \
+      "$staged_dmg"; then
+      return 0
+    fi
+
+    if (( attempt >= max_attempts )); then
+      echo "hdiutil create failed after $max_attempts attempts." >&2
+      return 1
+    fi
+
+    echo "hdiutil create failed (attempt $attempt/$max_attempts); retrying in $((attempt * 5))s." >&2
+    sleep "$((attempt * 5))"
+    attempt="$((attempt + 1))"
+  done
+}
+
+create_dmg
 
 hdiutil verify "$staged_dmg"
 
 final_dmg="$output_directory/$dmg_name"
+
 ditto "$staged_dmg" "$final_dmg"
 hdiutil verify "$final_dmg"
 
