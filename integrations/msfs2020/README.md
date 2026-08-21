@@ -143,9 +143,11 @@ The repository includes a Windows workflow at `.github/workflows/msfs-package.ym
 It downloads the current official MSFS 2020 SDK core installer, runs the package
 build, and uploads `metar-viewer-toolbar.zip` as an Actions artifact.
 
-The workflow runs automatically for pushes to `FlightSimIntegration`, or you can
-start it from the repository's **Actions** tab with **Run workflow**. To publish
-the ZIP as a downloadable GitHub Release asset, push a version tag such as:
+The SDK-backed workflow is manual because `fspackagetool.exe` requires an installed
+MSFS 2020 SDK. Start it from the repository's **Actions** tab with **Run workflow**
+using the `main` branch, then download the ZIP from the completed run's **Artifacts**
+section. To publish the ZIP as a downloadable GitHub Release asset, push a version tag
+such as:
 
 ```text
 msfs-v1.0.0

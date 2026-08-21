@@ -23,9 +23,9 @@ a macOS desktop app, and an in-game toolbar panel for Microsoft Flight Simulator
 
 ## What's in this repository
 
-`main` is the single source of truth and contains **all three versions at once**. The
-old `Mac-Version`, `Windows-Version`, and `FlightSimIntegration` branches are kept only
-as read-only historical backups — do not develop on them.
+`main` is the single source of truth and contains **all three versions at once**.
+Develop and release from this branch; the platform-specific implementations live in
+their sibling projects and workflows.
 
 All three versions share the same METAR decoding engine (`MetarViewer.Core`), so a
 parsing fix benefits every version at once.
@@ -201,9 +201,9 @@ project rather than failing: it is mapped to the `x64` solution platform only, s
 default `Any CPU` build stays green everywhere. Building it directly off Windows fails
 with `NETSDK1100`, which is expected.
 
-> The WinUI project is retained from the old `Windows-Version` branch for a
-> Windows-native look, and its build has not been verified since the Phase 1 refactor
-> (see [docs/PHASE-5-HANDOFF.md](docs/PHASE-5-HANDOFF.md)).
+> The WinUI project provides a Windows-native look, but is not currently included in
+> releases and its build has not been verified since the Phase 1 refactor (see
+> [docs/PHASE-5-HANDOFF.md](docs/PHASE-5-HANDOFF.md)).
 
 ### Local .NET SDK setup
 

@@ -51,7 +51,7 @@ The desktop variants are no longer separate branches. They are sibling projects 
 | Project | Platforms | Use it for |
 | --- | --- | --- |
 | `src/MetarViewer.App.Avalonia` | macOS, Linux, Windows | The cross-platform desktop app. This is what ships as the Windows `.exe` and the macOS `.dmg`. |
-| `src/MetarViewer.App.WinUI` | Windows only | A Windows-native WinUI 3 UI, kept from the old `Windows-Version` branch. |
+| `src/MetarViewer.App.WinUI` | Windows only | A Windows-native WinUI 3 UI, retained in the repository but not included in current releases. |
 | `src/MetarViewer.Core` | any | Shared parsing/models/services. Referenced by both apps; contains no UI code. |
 | `integrations/msfs2020` | MSFS 2020 | The in-game toolbar panel described above. |
 
